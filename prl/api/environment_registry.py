@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 
-from PokerRL import NoLimitHoldem
-from PokerRL.game.wrappers import AugmentObservationWrapper
+from prl.environment.PokerRL import NoLimitHoldem
+from prl.environment.Wrappers.prl_wrappers import AugmentObservationWrapper
 
 
 class EnvironmentRegistry:

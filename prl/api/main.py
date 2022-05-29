@@ -2,10 +2,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from environment_registry import EnvironmentRegistry
-import src.calls.environment.configure
-import src.calls.environment.reset
-import src.calls.environment.step
-import src.calls.environment.delete
+import calls.environment.configure
+import calls.environment.reset
+import calls.environment.step
+import calls.environment.delete
 import requests
 
 app = FastAPI()
@@ -26,10 +26,10 @@ app.add_middleware(
 app.backend = EnvironmentRegistry()
 
 # register api calls
-app.include_router(src.calls.environment.configure.router)
-app.include_router(src.calls.environment.reset.router)
-app.include_router(src.calls.environment.step.router)
-app.include_router(src.calls.environment.delete.router)
+app.include_router(calls.environment.configure.router)
+app.include_router(calls.environment.reset.router)
+app.include_router(calls.environment.step.router)
+app.include_router(calls.environment.delete.router)
 
 @app.get("/")
 async def root():

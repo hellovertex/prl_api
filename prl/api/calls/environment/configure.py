@@ -1,9 +1,8 @@
 import logging
 
 from fastapi import APIRouter
+from prl.api.model.environment_config import EnvironmentConfig, EnvironmentConfigRequestBody
 from starlette.requests import Request
-
-from src.model.environment_config import EnvironmentConfig, EnvironmentConfigRequestBody
 
 logger = logging.getLogger('configure')
 

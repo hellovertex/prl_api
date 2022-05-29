@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 from random import randint
 from typing import Optional
+
+import numpy as np
 from fastapi import APIRouter
+from prl.api.calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
+from prl.api.model.environment_state import EnvironmentState, Info
+from prl.environment.PokerRL import NoLimitHoldem
 from pydantic import BaseModel
 from starlette.requests import Request
-import numpy as np
-
-from PokerRL import NoLimitHoldem
-from src.calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
-from src.model.environment_state import EnvironmentState, Info, Players
 
 router = APIRouter()
 abbrevs = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']
@@ -124,7 +125,7 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
               'players': player_info,
               'board': board_cards,
               'button_index': button_index,
-              'p_acts_next':  (p_acts_next + button_index) % n_players,
+              'p_acts_next': (p_acts_next + button_index) % n_players,
               'done': False,
               'info': Info(**{'continue_round': True,
                               'draw_next_stage': False,

@@ -1,8 +1,7 @@
 import re
 
 import numpy as np
-
-from src.model.environment_state import PlayerInfo, Card, Board, Table, Players
+from prl.api.model.environment_state import PlayerInfo, Card, Board, Table, Players
 
 
 def maybe_replace_leading_digit(val):

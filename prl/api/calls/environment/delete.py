@@ -1,7 +1,6 @@
 from fastapi import APIRouter
+from prl.api.model.environment_delete import EnvironmentDeletion
 from starlette.requests import Request
-
-from src.model.environment_delete import EnvironmentDeletion
 
 router = APIRouter()
 

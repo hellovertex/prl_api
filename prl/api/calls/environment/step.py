@@ -1,8 +1,8 @@
 from fastapi import APIRouter
+from prl.api.model.environment_state import EnvironmentState, LastAction, Info
 from pydantic import BaseModel
 from starlette.requests import Request
-import numpy as np
-from src.model.environment_state import EnvironmentState, EnvironmentState, LastAction, Info, Players
+
 from .utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
 
 router = APIRouter()
@@ -55,7 +55,6 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     for k, v in info['payouts'].items():
         pid = (button_index + k) % n_players
         payouts_rolled[pid] = v
-
 
     # players_with_chips_left = [p if not p.is_all_in]
     result = {'env_id': body.env_id,
