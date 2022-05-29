@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 
-from prl.environment.PokerRL import NoLimitHoldem
+from prl.environment.steinberger.PokerRL import NoLimitHoldem
 from prl.environment.Wrappers.prl_wrappers import AugmentObservationWrapper
 
 

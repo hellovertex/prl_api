@@ -7,7 +7,7 @@ import numpy as np
 from fastapi import APIRouter
 from prl.api.calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
 from prl.api.model.environment_state import EnvironmentState, Info
-from prl.environment.PokerRL import NoLimitHoldem
+from prl.environment.steinberger.PokerRL import NoLimitHoldem
 from pydantic import BaseModel
 from starlette.requests import Request
 
