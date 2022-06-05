@@ -1,10 +1,13 @@
+from random import randint
+
 from fastapi import APIRouter
 from prl.api.model.environment_state import EnvironmentState, LastAction, Info
 from pydantic import BaseModel
 from starlette.requests import Request
 
 from .utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
-
+from prl.environment.steinberger.PokerRL.game._.rl_env.base import PokerEnv
+PokerEnv
 router = APIRouter()
 
 
@@ -19,8 +22,12 @@ class EnvironmentStepRequestBody(BaseModel):
              operation_id="step_environment")
 async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     n_players = request.app.backend.active_ens[body.env_id].env.N_SEATS
-    if body.action == -1:  # query ai model
-        action = (0, -1)
+    if body.action == -1:  # query ai model, random action for now
+        what = randint(0, 2)
+        raise_amount = -1
+        if what == 2:
+            raise_amount = max([p.current_bet for p in request.app.backend.active_ens[body.env_id].env.seats])
+        action = (what, raise_amount)
     else:
         action = (body.action, body.action_how_much)
     # observation is always relative to
