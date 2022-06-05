@@ -31,6 +31,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     else:
         action = (body.action, body.action_how_much)
     # observation is always relative to
+    print(f'Stepping environment with action = {action}')
     obs, a, done, info = request.app.backend.active_ens[body.env_id].step(action)
 
     # offset relative to hero offset
@@ -60,7 +61,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
 
     payouts_rolled = {}
     for k, v in info['payouts'].items():
-        pid = (button_index + k) % n_players
+        pid = (button_index + int(k)) % n_players
         payouts_rolled[pid] = v
 
     # players_with_chips_left = [p if not p.is_all_in]
