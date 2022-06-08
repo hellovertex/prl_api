@@ -23,6 +23,7 @@ class EnvironmentStepRequestBody(BaseModel):
 async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     n_players = request.app.backend.active_ens[body.env_id].env.N_SEATS
     if body.action == -1:  # query ai model, random action for now
+        # todo query baseline TAG agent
         what = randint(0, 2)
         raise_amount = -1
         if what == 2:
