@@ -38,7 +38,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     # offset relative to hero offset
     button_index = request.app.backend.metadata[body.env_id]['button_index']
     p_acts_next = request.app.backend.active_ens[body.env_id].env.current_player.seat_id
-    offset = (p_acts_next + button_index) % n_players
+    offset = -p_acts_next + button_index
 
     # if action was fold, but player could have checked, the environment internally changes the action
     # if that happens, we must overwrite last action accordingly
@@ -50,7 +50,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     obs_dict = request.app.backend.active_ens[body.env_id].obs_idx_dict
     obs_keys = [k for k in obs_dict.keys()]
 
-    table_info = get_table_info(obs_keys, obs, offset)
+    table_info = get_table_info(obs_keys, obs, offset, n_players=n_players)
     idx_end_table = obs_keys.index('side_pot_5')
 
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),

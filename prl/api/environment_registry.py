@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 
 from prl.environment.steinberger.PokerRL import NoLimitHoldem
-from prl.environment.Wrappers.prl_wrappers import AugmentObservationWrapper
+from prl.environment.Wrappers.prl_wrappers import AugmentObservationWrapper, AgentObservationType
 
 
 class EnvironmentRegistry:
@@ -22,7 +22,7 @@ class EnvironmentRegistry:
                             env_args=args,
                             lut_holder=NoLimitHoldem.get_lut_holder())
         env_wrapped = AugmentObservationWrapper(env)
-
+        env_wrapped.set_agent_observation_mode(AgentObservationType.SEER)
         self.active_ens[env_id] = env_wrapped
         self.metadata[env_id] = {'initial_state': True}
         return env_id

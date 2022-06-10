@@ -5,6 +5,8 @@ from typing import Optional
 
 import numpy as np
 from fastapi import APIRouter
+from prl.environment.Wrappers.prl_wrappers import AgentObservationType
+
 from prl.api.calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
 from prl.api.model.environment_state import EnvironmentState, Info
 from prl.environment.steinberger.PokerRL import NoLimitHoldem
@@ -82,6 +84,7 @@ def roll_starting_stacks_relative_to_button(request, body, env_id, n_players):
              operation_id="reset_environment")
 async def reset_environment(body: EnvironmentResetRequestBody, request: Request):
     env_id = body.env_id
+
     number_non_null_stacks = [stack for stack in body.stack_sizes.dict().values() if stack is not None]
     # if no starting stacks are provided we can safely get number of players from environment configuration
     # otherwise, starting stacks provided by the client indicate a maybe reduced number of players
@@ -98,7 +101,7 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     args = NoLimitHoldem.ARGS_CLS(n_seats=n_players,
                                   starting_stack_sizes_list=starting_stack_sizes_rolled,
                                   use_simplified_headsup_obs=False)
-    request.app.backend.active_ens[env_id].overwrite_args(args)
+    request.app.backend.active_ens[env_id].overwrite_args(args, agent_observation_mode=AgentObservationType.SEER)
     obs, _, _, _ = request.app.backend.active_ens[env_id].reset()
 
     obs_dict = request.app.backend.active_ens[env_id].obs_idx_dict
@@ -107,13 +110,18 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     button_index = request.app.backend.metadata[env_id]['button_index']
     # offset relative to hero offset
     p_acts_next = request.app.backend.active_ens[env_id].env.current_player.seat_id
-    offset = (p_acts_next + button_index) % n_players
-    table_info = get_table_info(obs_keys, obs, offset=offset)
+    offset = -p_acts_next + button_index
+    table_info = get_table_info(obs_keys, obs, offset=offset, n_players=n_players)
 
     idx_end_table = obs_keys.index('side_pot_5')
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
                                   idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
                                   obs=obs)
+    # MP next to act - roll to BTN perspective: [MP CO BTN SB BB UTG] to [BTN SB BB UTG MP CO]
+    FROM_NEXT_PLAYER_TO_BTN_PERSPECTIVE = -request.app.backend.active_ens[env_id].env.current_player.seat_id
+    # still MP next to act - roll to hero perspective when btn at index 4:
+    # [BTN SB BB UTG MP CO] to [BB UTG MP CO BTN SB]
+    FROM_BTN_TO_HERO_PERSPECTIVE = (n_players - button_index) % n_players
     player_info = get_player_stats(obs_keys, obs, start_idx=idx_end_table + 1, offset=offset, n_players=n_players)
 
     stack_sizes_rolled = get_rolled_stack_sizes(request, body, n_players, button_index)
