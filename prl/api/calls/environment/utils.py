@@ -100,6 +100,28 @@ SUIT_DICT = {
 }
 
 
+def get_indices_map(stacks: list, new_btn_seat_frontend: int):
+    seat_ids_remaining_frontend = [i for i, s in enumerate(stacks) if s > 0]  # [1, 2, 5]
+    roll_by = -seat_ids_remaining_frontend.index(new_btn_seat_frontend)
+    rolled_seat_ids = np.roll(seat_ids_remaining_frontend, roll_by)  # [5, 1, 2]
+    # mapped_indices = dict(list(zip(seat_ids_remaining_frontend, rolled_seat_ids)))
+    return dict([(pid_backend, seat_frontend) for pid_backend, seat_frontend in enumerate(rolled_seat_ids)])
+
+
+def update_button_seat_frontend(stacks: list, old_btn_seat: int):
+    # old_btn_seat = 2
+    # stacks = [0, 140, 800, 0, 0, 200]
+    # new button seat should be 5 because 3,4 are eliminated
+    rolled_stack_values = np.roll(stacks, -old_btn_seat)
+    # rolled_stack_values = [800   0   0 200   0 140]
+    for i, s in enumerate(rolled_stack_values):
+        if i == 0: continue  # exclude old button
+        if s > 0:
+            # translate index i from rolled to unrolled stack list
+            return (i + old_btn_seat) % MAX_PLAYERS
+    raise ValueError('Not enough players with positive stacks to determine next button.')
+
+
 def maybe_replace_leading_digit(val):
     val = val.replace('0th', 'first')
     val = val.replace('1th', 'second')
@@ -233,6 +255,3 @@ def get_stacks(player_info):
             stacks[pid] = 0
 
     return stacks
-
-
-

@@ -29,4 +29,12 @@ Accept: application/json
 
 ###
 # @name step_environment
-GET http://localhost:8000/environment/1/step/?action=0&action_how_much=-1.0
+POST http://localhost:8000/environment/1/step/?action=0&action_how_much=-1.0
+Content-Type: application/json
+Accept: application/json
+
+{
+  "env_id": 1,
+  "action": 1,
+  "action_how_much": -1
+}

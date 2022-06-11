@@ -128,7 +128,7 @@ def test_translate_starting_stacks_for_backend():
                               2: 2}
 
 
-def test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
+def not_a_test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
 
     observation_slices_per_player = []
     obs_keys = [re.sub(re.compile(r'p\d'), 'p', s) for s in obs_keys]

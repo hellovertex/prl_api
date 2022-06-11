@@ -16,11 +16,7 @@ class EnvironmentStepRequestBody(BaseModel):
     action_how_much: float
 
 
-@router.post("/environment/{env_id}/step",
-             response_model=EnvironmentState,
-             operation_id="step_environment")
-async def step_environment(body: EnvironmentStepRequestBody, request: Request):
-    n_players = request.app.backend.active_ens[body.env_id].env.N_SEATS
+def get_action(request, body):
     if body.action == -1:  # query ai model, random action for now
         # todo query baseline TAG agent
         what = randint(0, 2)
@@ -30,47 +26,50 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
         action = (what, raise_amount)
     else:
         action = (body.action, body.action_how_much)
-    # observation is always relative to
-    print(f'Stepping environment with action = {action}')
-    obs, a, done, info = request.app.backend.active_ens[body.env_id].step(action)
-    mapped_indices = dict(list(zip([i for i in range(n_players)], [i for i in range(n_players)])))
-    # offset relative to hero offset
-    button_index = request.app.backend.metadata[body.env_id]['button_index']
-    p_acts_next = request.app.backend.active_ens[body.env_id].env.current_player.seat_id
-    offset = -p_acts_next + button_index
+    return action
 
+
+@router.post("/environment/{env_id}/step",
+             response_model=EnvironmentState,
+             operation_id="step_environment")
+async def step_environment(body: EnvironmentStepRequestBody, request: Request):
+    env_id = body.env_id
+    n_players = request.app.backend.active_ens[env_id].env.N_SEATS
+    action = get_action(request, body)
+    print(f'Stepping environment with action = {action}')
+    obs, a, done, info = request.app.backend.active_ens[env_id].step(action)
     # if action was fold, but player could have checked, the environment internally changes the action
     # if that happens, we must overwrite last action accordingly
-    action = request.app.backend.active_ens[body.env_id].env.last_action  # [what, how_much, who]
+    action = request.app.backend.active_ens[env_id].env.last_action  # [what, how_much, who]
     action = action[0], action[1]  # drop who
-    print(f'a = {a}')
-    print(f'done = {done}')
-    print(f'info = {info}')
-    obs_dict = request.app.backend.active_ens[body.env_id].obs_idx_dict
+
+    mapped_indices = request.app.backend.metadata[env_id]['mapped_indices']
+    pid_next_to_act_backend = request.app.backend.active_ens[env_id].env.current_player.seat_id
+    offset_current_player_to_hero = pid_next_to_act_backend
+
+    obs_dict = request.app.backend.active_ens[env_id].obs_idx_dict
     obs_keys = [k for k in obs_dict.keys()]
-    normalization = request.app.backend.active_ens[body.env_id].normalization
+    normalization = request.app.backend.active_ens[env_id].normalization
     table_info = get_table_info(obs_keys=obs_keys,
                                 obs=obs,
-                                observer_offset=offset,
+                                observer_offset=offset_current_player_to_hero,
                                 normalization=normalization,
                                 map_indices=mapped_indices)
-    idx_end_table = obs_keys.index('side_pot_5')
 
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
                                   idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
                                   obs=obs)
-    # todo debug players using scratch
-    normalization = request.app.backend.active_ens[body.env_id].normalization
+
     player_info = get_player_stats(obs=obs,
                                    obs_keys=obs_keys,
-                                   offset=offset,
+                                   offset=offset_current_player_to_hero,
                                    mapped_indices=mapped_indices,
                                    normalization=normalization)
     stack_sizes_rolled = get_stacks(player_info)
 
     payouts_rolled = {}
     for k, v in info['payouts'].items():
-        pid = (button_index + int(k)) % n_players
+        pid = mapped_indices[int(k)]
         payouts_rolled[pid] = v
 
     # players_with_chips_left = [p if not p.is_all_in]
@@ -81,10 +80,9 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
               'table': table_info,
               'players': player_info,
               'board': board_cards,
-              'button_index': offset,
+              'button_index': request.app.backend.metadata[env_id]['button_index'],
               'done': done,
-              # todo this jumps from 3 to 1 instead of going from 3 to 4
-              'p_acts_next': (p_acts_next + button_index) % n_players,
+              'p_acts_next': mapped_indices[pid_next_to_act_backend],
               'info': Info(**{'continue_round': info['continue_round'],
                               'draw_next_stage': info['draw_next_stage'],
                               'rundown': info['rundown'],
