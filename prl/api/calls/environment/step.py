@@ -22,7 +22,7 @@ def get_action(request, body):
         what = randint(0, 2)
         raise_amount = -1
         if what == 2:
-            raise_amount = max([p.current_bet for p in request.app.backend.active_ens[body.env_id].env.seats])
+            raise_amount = max(max([p.current_bet for p in request.app.backend.active_ens[body.env_id].env.seats]), 100)
         action = (what, raise_amount)
     else:
         action = (body.action, body.action_how_much)
@@ -36,13 +36,13 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     env_id = body.env_id
     n_players = request.app.backend.active_ens[env_id].env.N_SEATS
     action = get_action(request, body)
-    print(f'Stepping environment with action = {action}')
+
     obs, a, done, info = request.app.backend.active_ens[env_id].step(action)
     # if action was fold, but player could have checked, the environment internally changes the action
     # if that happens, we must overwrite last action accordingly
     action = request.app.backend.active_ens[env_id].env.last_action  # [what, how_much, who]
-    action = action[0], action[1]  # drop who
-
+    action = action[0], action[1], action[2]
+    print(f'Stepping environment with action = {action}')
     mapped_indices = request.app.backend.metadata[env_id]['mapped_indices']
     pid_next_to_act_backend = request.app.backend.active_ens[env_id].env.current_player.seat_id
     offset_current_player_to_hero = pid_next_to_act_backend
@@ -66,12 +66,25 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
                                    mapped_indices=mapped_indices,
                                    normalization=normalization)
     stack_sizes_rolled = get_stacks(player_info)
-
     payouts_rolled = {}
+    print('info[payouts] = ', info['payouts'])
     for k, v in info['payouts'].items():
         pid = mapped_indices[int(k)]
         payouts_rolled[pid] = v
 
+    # when done, the observation sets the stacks to 0
+    if done:
+        stack_sizes_rolled = request.app.backend.metadata[body.env_id]['last_stack_sizes']
+        for i, (pid, stack) in enumerate(stack_sizes_rolled.items()):
+            if i in payouts_rolled:
+                stack_sizes_rolled[pid] += payouts_rolled[i]
+            # manually subtract last action from players stack_size, environment does not do it
+            if i == action[2] and (action[0] != 0):
+                stack_sizes_rolled[pid] -= action[1]
+    request.app.backend.metadata[body.env_id]['last_stack_sizes'] = stack_sizes_rolled
+    print('done = ', done)
+    print('RETURNING WITH STACK_SIZS:', stack_sizes_rolled)
+    print('PASYOUS = ', payouts_rolled)
     # players_with_chips_left = [p if not p.is_all_in]
     result = {'env_id': body.env_id,
               'n_players': n_players,
@@ -81,6 +94,8 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
               'players': player_info,
               'board': board_cards,
               'button_index': request.app.backend.metadata[env_id]['button_index'],
+              'sb': mapped_indices[request.app.backend.metadata[env_id]['sb']],
+              'bb': mapped_indices[request.app.backend.metadata[env_id]['bb']],
               'done': done,
               'p_acts_next': mapped_indices[pid_next_to_act_backend],
               'info': Info(**{'continue_round': info['continue_round'],

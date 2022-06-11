@@ -19,32 +19,10 @@ MAX_PLAYERS = 6
 def move_button_to_next_available_frontend_seat(request, body):
     stacks = list(body.stack_sizes.dict().values())
     old_btn_seat = request.app.backend.metadata[body.env_id]['button_index']
+    if 'last_stack_sizes' in request.app.backend.metadata[body.env_id]:
+        stacks = list(request.app.backend.metadata[body.env_id]['last_stack_sizes'].values())
     new_btn_seat = update_button_seat_frontend(stacks, old_btn_seat)
     request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat
-
-
-def roll_starting_stacks_relative_to_button(request, body, env_id, n_players):
-    """Roll stack sizes back such that button is at position 0.
-    This is required because the frontend always sends the stacks relative to the hero position."""
-    button_index = request.app.backend.metadata[env_id]['button_index']
-    stack_sizes_rolled = None
-    if body.stack_sizes is None:
-        # 1. fall back to default stack size if no stacks were provided in request
-        default_stack = request.app.backend.active_ens[env_id].env.DEFAULT_STACK_SIZE
-        stack_sizes_rolled = [default_stack for _ in range(n_players)]
-    else:
-        # 2. set custom stack sizes provided in the request body
-        if not request.app.backend.metadata[env_id]['initial_state']:
-            stack_sizes_rolled = np.roll(list(body.stack_sizes.dict().values()), -button_index, axis=0)
-            try:
-                stack_sizes_rolled = [stack.item() for stack in stack_sizes_rolled]
-            except Exception:
-                pass
-    return stack_sizes_rolled
-
-
-def translate_frontend_stack_sizes_to_environment_starting_stacks():
-    pass
 
 
 def assign_button_to_random_frontend_seat(request, body):
@@ -54,6 +32,10 @@ def assign_button_to_random_frontend_seat(request, body):
     new_btn_seat_frontend = np.random.choice(np.where(stacks > 0)[0])
     request.app.backend.metadata[body.env_id]['initial_state'] = False
     request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat_frontend
+    n_players_alive = len(np.where(stacks != 0))
+    sb, bb = (1, 2) if n_players_alive > 2 else (0, 1)
+    request.app.backend.metadata[body.env_id]['sb'] = sb
+    request.app.backend.metadata[body.env_id]['bb'] = bb
 
 
 @router.post("/environment/{env_id}/reset/",
@@ -82,6 +64,13 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
         stacks = np.array(list(body.stack_sizes.dict().values()))
         stacks[stacks == None] = 0
         stacks = stacks.tolist()
+        skip = True
+        for s in stacks:
+            if s != 0:
+                skip = False
+        # if stacks were empty, use last_stack_sizes
+        if skip:
+            stacks = list(request.app.backend.metadata[body.env_id]['last_stack_sizes'].values())
         mapped_indices = get_indices_map(stacks=stacks, new_btn_seat_frontend=new_btn_seat_frontend)
         rolled_stack_values = np.roll(stacks, -new_btn_seat_frontend)  # [200   0 140 800   0   0]
         seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)
@@ -123,6 +112,7 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
                                    normalization=normalization)
 
     stack_sizes = get_stacks(player_info)
+    request.app.backend.metadata[body.env_id]['last_stack_sizes'] = stack_sizes
     result = {'env_id': env_id,
               'n_players': n_players,
               'stack_sizes': stack_sizes,
@@ -131,6 +121,8 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
               'players': player_info,
               'board': board_cards,
               'button_index': new_btn_seat_frontend,
+              'sb': mapped_indices[request.app.backend.metadata[env_id]['sb']],
+              'bb': mapped_indices[request.app.backend.metadata[env_id]['bb']],
               'p_acts_next': mapped_indices[0] if n_players < 4 else mapped_indices[3],
               'done': False,
               'info': Info(**{'continue_round': True,

@@ -115,6 +115,8 @@ class EnvironmentState(BaseModel):
     players: Players
     board: Board
     button_index: int
+    sb: int
+    bb: int
     # utils
     last_action: Optional[LastAction]
     p_acts_next: int
