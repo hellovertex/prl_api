@@ -83,6 +83,15 @@ class PlayerInfo(BaseModel):
     c1: Card
 
 
+class Players(BaseModel):
+    p0: Optional[PlayerInfo]
+    p1: Optional[PlayerInfo]
+    p2: Optional[PlayerInfo]
+    p3: Optional[PlayerInfo]
+    p4: Optional[PlayerInfo]
+    p5: Optional[PlayerInfo]
+
+
 class LastAction(BaseModel):
     action_what: int
     action_how_much: float
@@ -94,15 +103,6 @@ class Info(BaseModel):
     rundown: bool
     deal_next_hand: bool
     payouts: Optional[Dict[int, float]]
-
-
-class Players(BaseModel):
-    p0: PlayerInfo
-    p1: PlayerInfo
-    p2: PlayerInfo
-    p3: PlayerInfo
-    p4: PlayerInfo
-    p5: PlayerInfo
 
 
 class EnvironmentState(BaseModel):

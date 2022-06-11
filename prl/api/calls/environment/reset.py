@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from random import randint, random
-
 import numpy as np
 from fastapi import APIRouter
 from prl.environment.Wrappers.prl_wrappers import AgentObservationType
@@ -132,16 +130,14 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
                                 normalization=normalization,
                                 map_indices=mapped_indices)
 
-    idx_end_table = obs_keys.index('side_pot_5')
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
                                   idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
                                   obs=obs)
 
-    player_info = get_player_stats(obs_keys,
-                                   obs,
-                                   start_idx=idx_end_table + 1,
-                                   offset=offset,
-                                   n_players=n_players,
+    player_info = get_player_stats(obs=obs,
+                                   obs_keys=obs_keys,
+                                   offset=offset_current_player_to_hero,
+                                   mapped_indices=mapped_indices,
                                    normalization=normalization)
 
     stack_sizes_rolled = get_rolled_stack_sizes(request, body, n_players, new_btn_seat_frontend)
@@ -153,7 +149,7 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
               'players': player_info,
               'board': board_cards,
               'button_index': new_btn_seat_frontend,
-              'p_acts_next': (pid_next_to_act_backend + new_btn_seat_frontend) % n_players,
+              'p_acts_next': mapped_indices[0] if n_players < 4 else mapped_indices[3],
               'done': False,
               'info': Info(**{'continue_round': True,
                               'draw_next_stage': False,

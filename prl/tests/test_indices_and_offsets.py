@@ -66,7 +66,12 @@ and translate it back for the frontend to
     200  # BTN
 }
 """
+import re
+
 import numpy as np
+
+from prl.api.calls.environment.utils import get_player_cards
+from prl.api.model.environment_state import PlayerInfo, Players
 
 MAX_PLAYERS = 6
 
@@ -123,5 +128,29 @@ def test_translate_starting_stacks_for_backend():
                               2: 2}
 
 
-if __name__ == '__main__':
-    test_translate_starting_stacks_for_backend()
+def test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
+
+    observation_slices_per_player = []
+    obs_keys = [re.sub(re.compile(r'p\d'), 'p', s) for s in obs_keys]
+    for i in range(MAX_PLAYERS):
+        start_idx = obs_keys.index(f'stack_p{i}')
+        end_idx = obs_keys.index(f'side_pot_rank_p{i}_is_5') + 1
+        observation_slices_per_player.append(slice(start_idx, end_idx))
+
+    player_info = {}
+    for pid, frontend_seat in mapped_indices.items():
+
+        hand = get_player_cards(idx_start=obs_keys.index(f"{pid}th_player_card_0_rank_0"),
+                                idx_end=obs_keys.index(f"{pid}th_player_card_1_suit_3") + 1,
+                                obs=obs)
+        p_info = list(zip(obs_keys, obs))[observation_slices_per_player[pid]]
+
+        player_info[f'p{frontend_seat}'] = PlayerInfo(**{'pid': frontend_seat, **dict(p_info), **dict(hand)})
+
+    p_info_rolled = np.roll(list(player_info.values()), offset, axis=0)
+    p_info_rolled = dict(list(zip(player_info.keys(), p_info_rolled)))
+    response_players = Players(**p_info_rolled)
+
+
+    if __name__ == '__main__':
+        test_translate_starting_stacks_for_backend()

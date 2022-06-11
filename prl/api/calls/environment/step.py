@@ -1,14 +1,12 @@
 from random import randint
 
 from fastapi import APIRouter
-from prl.api.model.environment_state import EnvironmentState, LastAction, Info
 from pydantic import BaseModel
 from starlette.requests import Request
 
+from prl.api.model.environment_state import EnvironmentState, LastAction, Info
 from .utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
-from prl.environment.steinberger.PokerRL.game._.rl_env.base import PokerEnv
 
-PokerEnv
 router = APIRouter()
 
 

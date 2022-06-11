@@ -132,74 +132,98 @@ def get_player_cards(idx_start, idx_end, obs, n_suits=4, n_ranks=13):
     return cards
 
 
-def get_player_stats(obs_keys, obs, start_idx, offset, n_players, normalization) -> Players:
-    # cards where 0 is always the observing players cards
-    cp0 = get_player_cards(idx_start=obs_keys.index("0th_player_card_0_rank_0"),
-                           idx_end=obs_keys.index("1th_player_card_0_rank_0"),
-                           obs=obs)
-    cp1 = get_player_cards(idx_start=obs_keys.index("1th_player_card_0_rank_0"),
-                           idx_end=obs_keys.index("2th_player_card_0_rank_0"),
-                           obs=obs)
-    cp2 = get_player_cards(idx_start=obs_keys.index("2th_player_card_0_rank_0"),
-                           idx_end=obs_keys.index("3th_player_card_0_rank_0"),
-                           obs=obs)
-    cp3 = get_player_cards(idx_start=obs_keys.index("3th_player_card_0_rank_0"),
-                           idx_end=obs_keys.index("4th_player_card_0_rank_0"),
-                           obs=obs)
-    cp4 = get_player_cards(idx_start=obs_keys.index("4th_player_card_0_rank_0"),
-                           idx_end=obs_keys.index("5th_player_card_0_rank_0"),
-                           obs=obs)
-    cp5 = get_player_cards(idx_start=obs_keys.index("5th_player_card_0_rank_0"),
-                           idx_end=obs_keys.index("preflop_player_0_action_0_how_much"),
-                           obs=obs)
-    # stats where first stats are always the observing player stats
-    idx_end_p0 = obs_keys.index('side_pot_rank_p0_is_5') + 1
-    idx_end_p1 = obs_keys.index('side_pot_rank_p1_is_5') + 1
-    idx_end_p2 = obs_keys.index('side_pot_rank_p2_is_5') + 1
-    idx_end_p3 = obs_keys.index('side_pot_rank_p3_is_5') + 1
-    idx_end_p4 = obs_keys.index('side_pot_rank_p4_is_5') + 1
-    idx_end_p5 = obs_keys.index('side_pot_rank_p5_is_5') + 1
+def get_player_stats(obs, obs_keys, offset, mapped_indices: dict, normalization):
+    observation_slices_per_player = []
+
+    for i in range(MAX_PLAYERS):
+        start_idx = obs_keys.index(f'stack_p{i}')
+        end_idx = obs_keys.index(f'side_pot_rank_p{i}_is_5') + 1
+        observation_slices_per_player.append(slice(start_idx, end_idx))
+
+    player_info = {}
     obs_keys = [re.sub(re.compile(r'p\d'), 'p', s) for s in obs_keys]
+    for pid, frontend_seat in mapped_indices.items():
+        hand = get_player_cards(idx_start=obs_keys.index(f"{pid}th_player_card_0_rank_0"),
+                                idx_end=obs_keys.index(f"{pid}th_player_card_1_suit_3") + 1,
+                                obs=obs)
+        p_info = dict(list(zip(obs_keys, obs))[observation_slices_per_player[pid]])
+        p_info['stack_p'] = round(p_info['stack_p'] * normalization)
+        p_info['curr_bet_p'] = round(p_info['curr_bet_p'] * normalization)
+        player_info[f'p{frontend_seat}'] = PlayerInfo(**{'pid': frontend_seat, **p_info, **dict(hand)})
 
-    p0 = list(zip(obs_keys, obs))[start_idx:idx_end_p0]
-    p1 = list(zip(obs_keys, obs))[idx_end_p0:idx_end_p1]
-    p2 = list(zip(obs_keys, obs))[idx_end_p1:idx_end_p2]
-    p3 = list(zip(obs_keys, obs))[idx_end_p2:idx_end_p3]
-    p4 = list(zip(obs_keys, obs))[idx_end_p3:idx_end_p4]
-    p5 = list(zip(obs_keys, obs))[idx_end_p4:idx_end_p5]
-    # roll [p0, p1, p2, p3, p4, p5], and [cp0, cp1, cp2, cp3, cp4, cp5]
-
-    # roll pid backwards
-    pids = np.roll(np.arange(n_players), -offset, axis=0)
-    pids = np.pad(pids, (0, 6 - n_players), 'constant', constant_values=(-1))
-    try:
-        pids = [pid.item() for pid in pids]  # convert np.int32 to python int
-    except Exception:
-        pass
-    # example: offset = 2, means the order changes from
-    # [BTN, SB, BB, UTG, MP, CU] to [MP, CU, BTN, SB, BB, UTG], such that BTN is at index 2==offset.
-    # the hero, which always sits at index 0 in the frontend will hence be MP.
-    # backend indices are relative to BTN not HERO
-    # since p0 and cp0 are always data for BTN, we must roll the player info before returning it
-    # in order for the PIDs to match after rolling, we roll them in reverse order prior to rolling the whole data
-    # we could hard code pids 0 to 5 but use the rolling with final assertion as a runtime check
-    # note that the pids here correspond to the frontend pids not the backend env pids
-    player_info = {'p0': PlayerInfo(**{'pid': pids[0], **dict(p0), **dict(cp0)}),
-                   'p1': PlayerInfo(**{'pid': pids[1], **dict(p1), **dict(cp1)}),
-                   'p2': PlayerInfo(**{'pid': pids[2], **dict(p2), **dict(cp2)}),
-                   'p3': PlayerInfo(**{'pid': pids[3], **dict(p3), **dict(cp3)}),
-                   'p4': PlayerInfo(**{'pid': pids[4], **dict(p4), **dict(cp4)}),
-                   'p5': PlayerInfo(**{'pid': pids[5], **dict(p5), **dict(cp5)})}
-    # roll pid forward together with remaining data
     p_info_rolled = np.roll(list(player_info.values()), offset, axis=0)
     p_info_rolled = dict(list(zip(player_info.keys(), p_info_rolled)))
+    response_players = Players(**p_info_rolled)
+    return response_players
 
-    players = Players(**p_info_rolled)
-    for player in players:
-        player[1].stack_p *= round(normalization)
-        player[1].curr_bet_p *= round(normalization)
-    assert players.p0.pid == 0
-    return players
+# def get_player_stats(obs_keys, obs, start_idx, offset, n_players, normalization) -> Players:
+#     # cards where 0 is always the observing players cards
+#     cp0 = get_player_cards(idx_start=obs_keys.index("0th_player_card_0_rank_0"),
+#                            idx_end=obs_keys.index("1th_player_card_0_rank_0"),
+#                            obs=obs)
+#     cp1 = get_player_cards(idx_start=obs_keys.index("1th_player_card_0_rank_0"),
+#                            idx_end=obs_keys.index("2th_player_card_0_rank_0"),
+#                            obs=obs)
+#     cp2 = get_player_cards(idx_start=obs_keys.index("2th_player_card_0_rank_0"),
+#                            idx_end=obs_keys.index("3th_player_card_0_rank_0"),
+#                            obs=obs)
+#     cp3 = get_player_cards(idx_start=obs_keys.index("3th_player_card_0_rank_0"),
+#                            idx_end=obs_keys.index("4th_player_card_0_rank_0"),
+#                            obs=obs)
+#     cp4 = get_player_cards(idx_start=obs_keys.index("4th_player_card_0_rank_0"),
+#                            idx_end=obs_keys.index("5th_player_card_0_rank_0"),
+#                            obs=obs)
+#     cp5 = get_player_cards(idx_start=obs_keys.index("5th_player_card_0_rank_0"),
+#                            idx_end=obs_keys.index("preflop_player_0_action_0_how_much"),
+#                            obs=obs)
+#     # stats where first stats are always the observing player stats
+#     idx_end_p0 = obs_keys.index('side_pot_rank_p0_is_5') + 1
+#     idx_end_p1 = obs_keys.index('side_pot_rank_p1_is_5') + 1
+#     idx_end_p2 = obs_keys.index('side_pot_rank_p2_is_5') + 1
+#     idx_end_p3 = obs_keys.index('side_pot_rank_p3_is_5') + 1
+#     idx_end_p4 = obs_keys.index('side_pot_rank_p4_is_5') + 1
+#     idx_end_p5 = obs_keys.index('side_pot_rank_p5_is_5') + 1
+#     obs_keys = [re.sub(re.compile(r'p\d'), 'p', s) for s in obs_keys]
+#
+#     p0 = list(zip(obs_keys, obs))[start_idx:idx_end_p0]
+#     p1 = list(zip(obs_keys, obs))[idx_end_p0:idx_end_p1]
+#     p2 = list(zip(obs_keys, obs))[idx_end_p1:idx_end_p2]
+#     p3 = list(zip(obs_keys, obs))[idx_end_p2:idx_end_p3]
+#     p4 = list(zip(obs_keys, obs))[idx_end_p3:idx_end_p4]
+#     p5 = list(zip(obs_keys, obs))[idx_end_p4:idx_end_p5]
+#     # roll [p0, p1, p2, p3, p4, p5], and [cp0, cp1, cp2, cp3, cp4, cp5]
+#
+#     # roll pid backwards
+#     pids = np.roll(np.arange(n_players), -offset, axis=0)
+#     pids = np.pad(pids, (0, 6 - n_players), 'constant', constant_values=(-1))
+#     try:
+#         pids = [pid.item() for pid in pids]  # convert np.int32 to python int
+#     except Exception:
+#         pass
+#     # example: offset = 2, means the order changes from
+#     # [BTN, SB, BB, UTG, MP, CU] to [MP, CU, BTN, SB, BB, UTG], such that BTN is at index 2==offset.
+#     # the hero, which always sits at index 0 in the frontend will hence be MP.
+#     # backend indices are relative to BTN not HERO
+#     # since p0 and cp0 are always data for BTN, we must roll the player info before returning it
+#     # in order for the PIDs to match after rolling, we roll them in reverse order prior to rolling the whole data
+#     # we could hard code pids 0 to 5 but use the rolling with final assertion as a runtime check
+#     # note that the pids here correspond to the frontend pids not the backend env pids
+#     player_info = {'p0': PlayerInfo(**{'pid': pids[0], **dict(p0), **dict(cp0)}),
+#                    'p1': PlayerInfo(**{'pid': pids[1], **dict(p1), **dict(cp1)}),
+#                    'p2': PlayerInfo(**{'pid': pids[2], **dict(p2), **dict(cp2)}),
+#                    'p3': PlayerInfo(**{'pid': pids[3], **dict(p3), **dict(cp3)}),
+#                    'p4': PlayerInfo(**{'pid': pids[4], **dict(p4), **dict(cp4)}),
+#                    'p5': PlayerInfo(**{'pid': pids[5], **dict(p5), **dict(cp5)})}
+#     # roll pid forward together with remaining data
+#     p_info_rolled = np.roll(list(player_info.values()), offset, axis=0)
+#     p_info_rolled = dict(list(zip(player_info.keys(), p_info_rolled)))
+#
+#     players = Players(**p_info_rolled)
+#     for player in players:
+#         player[1].stack_p *= round(normalization)
+#         player[1].curr_bet_p *= round(normalization)
+#     assert players.p0.pid == 0
+#     return players
 
 
 def get_board_cards(idx_board_start, idx_board_end, obs, n_suits=4, n_ranks=13):
