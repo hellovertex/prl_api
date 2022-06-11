@@ -16,11 +16,11 @@ abbrevs = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']
 MAX_PLAYERS = 6
 
 
-def move_button_to_next_available_frontend_seat(request, env_id):
-    stacks = request.body().stack_sizes.dict().values()
-    old_btn_seat = request.app.backend.metadata[env_id]['button_index']
+def move_button_to_next_available_frontend_seat(request, body):
+    stacks = list(body.stack_sizes.dict().values())
+    old_btn_seat = request.app.backend.metadata[body.env_id]['button_index']
     new_btn_seat = update_button_seat_frontend(stacks, old_btn_seat)
-    request.app.backend.metadata[env_id]['button_index'] = new_btn_seat
+    request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat
 
 
 def roll_starting_stacks_relative_to_button(request, body, env_id, n_players):
@@ -43,9 +43,6 @@ def roll_starting_stacks_relative_to_button(request, body, env_id, n_players):
     return stack_sizes_rolled
 
 
-
-
-
 def translate_frontend_stack_sizes_to_environment_starting_stacks():
     pass
 
@@ -53,6 +50,7 @@ def translate_frontend_stack_sizes_to_environment_starting_stacks():
 def assign_button_to_random_frontend_seat(request, body):
     # Randomly determine first button seat position in frontend
     stacks = np.array(list(body.stack_sizes.dict().values()))
+    stacks[stacks == None] = 0
     new_btn_seat_frontend = np.random.choice(np.where(stacks > 0)[0])
     request.app.backend.metadata[body.env_id]['initial_state'] = False
     request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat_frontend
@@ -76,12 +74,14 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     if request.app.backend.metadata[env_id]['initial_state']:
         assign_button_to_random_frontend_seat(request, body)
     else:
-        move_button_to_next_available_frontend_seat(request, env_id)
+        move_button_to_next_available_frontend_seat(request, body)
     new_btn_seat_frontend = request.app.backend.metadata[env_id]['button_index']
 
     # If request body contains stack sizes, remove zeros and roll them relative to BUTTON
     if body.stack_sizes:
-        stacks = list(body.stack_sizes.dict().values())
+        stacks = np.array(list(body.stack_sizes.dict().values()))
+        stacks[stacks == None] = 0
+        stacks = stacks.tolist()
         mapped_indices = get_indices_map(stacks=stacks, new_btn_seat_frontend=new_btn_seat_frontend)
         rolled_stack_values = np.roll(stacks, -new_btn_seat_frontend)  # [200   0 140 800   0   0]
         seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)

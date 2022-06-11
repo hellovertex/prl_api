@@ -113,6 +113,8 @@ def update_button_seat_frontend(stacks: list, old_btn_seat: int):
     # stacks = [0, 140, 800, 0, 0, 200]
     # new button seat should be 5 because 3,4 are eliminated
     rolled_stack_values = np.roll(stacks, -old_btn_seat)
+    rolled_stack_values[rolled_stack_values == None] = 0
+
     # rolled_stack_values = [800   0   0 200   0 140]
     for i, s in enumerate(rolled_stack_values):
         if i == 0: continue  # exclude old button
