@@ -1,3 +1,72 @@
+"""Rolling indices between frontend, and backend needs care.
+The prl_environment.steinberger.PokerRL-environment,
+ has the observation and seat indices relative to the BTN.
+The vectorized observation is always relative to the current player.
+The frontend needs the seat indices relative to the HERO seat.
+
+Additionally, when a players stack is 0 at the beginning of a round, he or she is eliminated.
+His seat is kept in the frontend, and thus seat indices and their order does not change in the frontend.
+However, the prl_environment.steinberger.PokerRL-environment, needs to be reset
+with a decreased number of players, because it does not work,
+if it is reset with a person that has a stack size of 0.
+
+Furthermore, we need to keep track of the BTN position. Lets look at an example
+
+Round starts with 6 players and stacks. The button is randomly determined at
+the very first reset, and gets seat_id=2. After that the BTN goes to the next
+ player on the left.
+These are the starting stacks of round=1 as seen by the frontend.
+{
+    200,  # HERO
+    140,
+    200,  # BTN
+    200,
+    200
+    200
+}
+During the game, 3 players go all in and we get final stacks
+{
+    0,    # HERO
+    140,
+    800,  # BTN
+    0,
+    0
+    200
+}
+
+Now the button must be propagated to seat_id=5.
+On end of a round that is signalled by the api via a `done`-flag response,
+the frontend sends a POST request to the /reset endpoint of the API using the final stack sizes.
+
+It is now the API`s job -upon receiving the reset-request, to translate
+{
+    0,    # HERO
+    140,
+    800,  # BTN
+    0,
+    0
+    200
+}
+
+to
+{
+    200,  # BTN propagated to the left
+    140,
+    800,
+} for the backend to reset the environment
+ - using the new BTN position
+ - and without eliminated players,
+and translate it back for the frontend to
+{
+    0,    # HERO
+    140,
+    800,
+    0,
+    0
+    200  # BTN
+}
+"""
+
 import re
 
 import numpy as np
@@ -5,6 +74,7 @@ from prl.environment.steinberger.PokerRL.game import Poker
 
 from prl.api.model.environment_state import PlayerInfo, Card, Board, Table, Players
 
+MAX_PLAYERS = 6
 RANK_DICT = {
     Poker.CARD_NOT_DEALT_TOKEN_1D: "",
     0: "2",
@@ -156,12 +226,55 @@ def get_board_cards(idx_board_start, idx_board_end, obs, n_suits=4, n_ranks=13):
     return Board(**cards)
 
 
-def get_table_info(obs_keys, obs, offset, n_players, normalization):
-    side_pots = [obs[obs_keys.index(f'side_pot_{i}')] for i in range(n_players)]
-    side_pots = np.roll(side_pots, -offset)
-    side_pots = np.pad(side_pots, (0, 6 - n_players), 'constant')
-    side_pots = [s.item() for s in side_pots]  # convert np.int32 to python int
+# def get_table_info(obs_keys, obs, offset, n_players, normalization):
+#     side_pots = [obs[obs_keys.index(f'side_pot_{i}')] for i in range(n_players)]
+#     side_pots = np.roll(side_pots, -offset)
+#     side_pots = np.pad(side_pots, (0, 6 - n_players), 'constant')
+#     side_pots = [s.item() for s in side_pots]  # convert np.int32 to python int
+#     sp_keys = ['side_pot_0', 'side_pot_1', 'side_pot_2', 'side_pot_3', 'side_pot_4', 'side_pot_5']
+#     table = {'ante': round(obs[obs_keys.index('ante')] * normalization),
+#              'small_blind': round(obs[obs_keys.index('small_blind')] * normalization),
+#              'big_blind': round(obs[obs_keys.index('big_blind')] * normalization),
+#              'min_raise': round(obs[obs_keys.index('min_raise')] * normalization),
+#              'pot_amt': round(obs[obs_keys.index('pot_amt')] * normalization),
+#              'total_to_call': round(obs[obs_keys.index('total_to_call')] * normalization),
+#              'round_preflop': obs[obs_keys.index('round_preflop')],
+#              'round_flop': obs[obs_keys.index('round_flop')],
+#              'round_turn': obs[obs_keys.index('round_turn')],
+#              'round_river': obs[obs_keys.index('round_river')],
+#              # side pots 0 to 5
+#              **dict(list(zip(sp_keys, side_pots)))
+#              }
+#     # table_kwargs = list(zip(obs_keys, obs))[0:obs_keys.index('side_pot_5') + 1]
+#     # return Table(**dict(table_kwargs))
+#     return Table(**table)
+
+
+def get_table_info(obs_keys, obs, n_players, observer_offset, normalization, map_indices):
+    """Observer offset is necessary to compensate for the fact,
+    that the vectorized observation is not relative to hero or button, but it
+    is relative to the next acting player.
+
+    Since map_indices computes all indices relative to button, we must roll
+    these a last time by the seat_id of the next player.
+
+    For example [0,1,2,3,4,5] frontend seat ids with a button at seat_id=2 becomes
+    [2,3,4,5,0,1] relative to the button. If the acting player is CO, he has a seat_id=1
+    given that button is at seat_id=2. Hence the observation relative to the acting playre
+    is relative to seat_id=1 and becomes [1,2,3,4,5,0].
+
+    Rolling [2,3,4,5,0,1] that we obtained from applying the indices_map by
+    The CO seat_id, i.e. 1, we obtain exactly the order of [1,2,3,4,5,0] that is
+    used in the observation vector.
+    """
+
+    side_pots: np.ndarray = np.zeros(MAX_PLAYERS)
+    for pid, seat in map_indices.items():
+        side_pots[seat] = obs[obs_keys.index(f'side_pot_{pid}')]
     sp_keys = ['side_pot_0', 'side_pot_1', 'side_pot_2', 'side_pot_3', 'side_pot_4', 'side_pot_5']
+
+    side_pots = np.roll(side_pots, observer_offset)
+
     table = {'ante': round(obs[obs_keys.index('ante')] * normalization),
              'small_blind': round(obs[obs_keys.index('small_blind')] * normalization),
              'big_blind': round(obs[obs_keys.index('big_blind')] * normalization),
@@ -178,7 +291,6 @@ def get_table_info(obs_keys, obs, offset, n_players, normalization):
     # table_kwargs = list(zip(obs_keys, obs))[0:obs_keys.index('side_pot_5') + 1]
     # return Table(**dict(table_kwargs))
     return Table(**table)
-
 
 def get_rolled_stack_sizes(request, body, n_players, button_index):
     seats = request.app.backend.active_ens[body.env_id].env.seats

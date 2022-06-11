@@ -66,3 +66,60 @@ and translate it back for the frontend to
     200  # BTN
 }
 """
+import numpy as np
+
+MAX_PLAYERS = 6
+
+
+def update_button_seat_frontend(stacks: list, old_btn_seat: int):
+    # old_btn_seat = 2
+    # stacks = [0, 140, 800, 0, 0, 200]
+    # new button seat should be 5 because 3,4 are eliminated
+    rolled_stack_values = np.roll(stacks, -old_btn_seat)
+    # rolled_stack_values = [800   0   0 200   0 140]
+    for i, s in enumerate(rolled_stack_values):
+        if i == 0: continue  # exclude old button
+        if s > 0:
+            # translate index i from rolled to unrolled stack list
+            return (i + old_btn_seat) % MAX_PLAYERS
+    raise ValueError('Not enough players with positive stacks to determine next button.')
+
+
+def get_indices_map(stacks: list, new_btn_seat_frontend: int):
+    seat_ids_remaining_frontend = [i for i, s in enumerate(stacks) if s > 0]  # [1, 2, 5]
+    roll_by = -seat_ids_remaining_frontend.index(new_btn_seat_frontend)
+    rolled_seat_ids = np.roll(seat_ids_remaining_frontend, roll_by)  # [5, 1, 2]
+    # mapped_indices = dict(list(zip(seat_ids_remaining_frontend, rolled_seat_ids)))
+    return dict([(pid_backend, seat_frontend) for pid_backend, seat_frontend in enumerate(rolled_seat_ids)])
+
+
+def test_translate_starting_stacks_for_backend():
+    # gotten from body.stack_sizes.dict()
+    starting_stacks = {'stack_p0': 0,
+                       'stack_p1': 140,
+                       'stack_p2': 800,  # BTN
+                       'stack_p3': 0,
+                       'stack_p4': 0,
+                       'stack_p5': 200}
+
+    # 1. determine new frontend button seat
+    # 2. compute map that translates backend indices back to frontend indices after stepping the environment
+    # 3. make starting_stack_list for prl_environment.steinberger.PokerRL-environment
+
+    # 1.
+    btn_seat_frontend = 2
+    new_btn_seat_frontend = update_button_seat_frontend(stacks=list(starting_stacks.values()),
+                                                        old_btn_seat=btn_seat_frontend)
+    # 2.
+    mapped_indices = get_indices_map(stacks=list(starting_stacks.values()),
+                                     new_btn_seat_frontend=new_btn_seat_frontend)
+    # 3.
+    rolled_stack_values = np.roll(list(starting_stacks.values()), -new_btn_seat_frontend)  # [200   0 140 800   0   0]
+    seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)
+    trimmed_rolled_stack_values = rolled_stack_values[seat_ids_with_pos_stacks]  # [200 140 800]
+
+    print(mapped_indices)
+
+
+if __name__ == '__main__':
+    test_translate_starting_stacks_for_backend()
