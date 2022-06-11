@@ -117,8 +117,10 @@ def test_translate_starting_stacks_for_backend():
     rolled_stack_values = np.roll(list(starting_stacks.values()), -new_btn_seat_frontend)  # [200   0 140 800   0   0]
     seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)
     trimmed_rolled_stack_values = rolled_stack_values[seat_ids_with_pos_stacks]  # [200 140 800]
-
-    print(mapped_indices)
+    assert np.array_equal(trimmed_rolled_stack_values, [200, 140, 800])
+    assert mapped_indices == {0: 5,
+                              1: 1,
+                              2: 2}
 
 
 if __name__ == '__main__':
