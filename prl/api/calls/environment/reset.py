@@ -111,13 +111,14 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     # offset relative to hero offset
     p_acts_next = request.app.backend.active_ens[env_id].env.current_player.seat_id
     offset = -p_acts_next + button_index
-    table_info = get_table_info(obs_keys, obs, offset=offset, n_players=n_players)
+    normalization = request.app.backend.active_ens[env_id].normalization
+    table_info = get_table_info(obs_keys, obs, offset=offset, n_players=n_players, normalization=normalization)
 
     idx_end_table = obs_keys.index('side_pot_5')
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
                                   idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
                                   obs=obs)
-    normalization = request.app.backend.active_ens[env_id].normalization
+
     # MP next to act - roll to BTN perspective: [MP CO BTN SB BB UTG] to [BTN SB BB UTG MP CO]
     FROM_NEXT_PLAYER_TO_BTN_PERSPECTIVE = -request.app.backend.active_ens[env_id].env.current_player.seat_id
     # still MP next to act - roll to hero perspective when btn at index 4:

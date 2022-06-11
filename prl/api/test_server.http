@@ -45,11 +45,11 @@ Accept: application/json
 {
   "env_id": 1,
   "stack_sizes": {
-    "stack_p0": 2000,
+    "stack_p0": 0,
     "stack_p1": 2000,
     "stack_p2": 2000,
-    "stack_p3": 2000,
-    "stack_p4": 2000,
+    "stack_p3": 0,
+    "stack_p4": 0,
     "stack_p5": 2000
   }
 }

@@ -50,8 +50,8 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     print(f'info = {info}')
     obs_dict = request.app.backend.active_ens[body.env_id].obs_idx_dict
     obs_keys = [k for k in obs_dict.keys()]
-
-    table_info = get_table_info(obs_keys, obs, offset, n_players=n_players)
+    normalization = request.app.backend.active_ens[body.env_id].normalization
+    table_info = get_table_info(obs_keys, obs, offset, n_players=n_players, normalization=normalization)
     idx_end_table = obs_keys.index('side_pot_5')
 
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
