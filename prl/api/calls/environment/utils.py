@@ -134,15 +134,15 @@ def get_board_cards(idx_board_start, idx_board_end, obs, n_suits=4, n_ranks=13):
     cards = {}
     end_idx = 0
     for i in range(5):
-        suit = -1
-        rank = -1
+        suit = -127
+        rank = -127
         end_idx = cur_idx + n_suits + n_ranks
         bits = obs[cur_idx:end_idx]
         if sum(bits) > 0:
             idx = np.where(bits == 1)[0]
             rank, suit = idx[0], idx[1] - n_ranks
 
-        cards[f'b{i}'] = Card(**{'name': f'b{i}',
+        cards[f'b{i}'] = Card(**{'name': RANK_DICT[rank]+SUIT_DICT[suit],
                                  'suit': suit,
                                  'rank': rank,
                                  'index': i})
