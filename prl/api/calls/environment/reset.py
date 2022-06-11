@@ -6,7 +6,7 @@ from prl.environment.Wrappers.prl_wrappers import AgentObservationType
 from prl.environment.steinberger.PokerRL import NoLimitHoldem
 from starlette.requests import Request
 
-from prl.api.calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
+from prl.api.calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_stacks
 from prl.api.model.environment_reset import EnvironmentResetRequestBody
 from prl.api.model.environment_state import EnvironmentState, Info
 
@@ -126,7 +126,6 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     # table_info = get_table_info(obs_keys, obs, offset=offset, n_players=n_players, normalization=normalization)
     table_info = get_table_info(obs_keys, obs,
                                 observer_offset=offset_current_player_to_hero,
-                                n_players=n_players,
                                 normalization=normalization,
                                 map_indices=mapped_indices)
 
@@ -140,10 +139,10 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
                                    mapped_indices=mapped_indices,
                                    normalization=normalization)
 
-    stack_sizes_rolled = get_rolled_stack_sizes(request, body, n_players, new_btn_seat_frontend)
+    stack_sizes = get_stacks(player_info)
     result = {'env_id': env_id,
               'n_players': n_players,
-              'stack_sizes': stack_sizes_rolled,
+              'stack_sizes': stack_sizes,
               'last_action': None,
               'table': table_info,
               'players': player_info,
