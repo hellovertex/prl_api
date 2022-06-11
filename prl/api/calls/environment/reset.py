@@ -117,12 +117,14 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
                                   idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
                                   obs=obs)
+    normalization = request.app.backend.active_ens[env_id].normalization
     # MP next to act - roll to BTN perspective: [MP CO BTN SB BB UTG] to [BTN SB BB UTG MP CO]
     FROM_NEXT_PLAYER_TO_BTN_PERSPECTIVE = -request.app.backend.active_ens[env_id].env.current_player.seat_id
     # still MP next to act - roll to hero perspective when btn at index 4:
     # [BTN SB BB UTG MP CO] to [BB UTG MP CO BTN SB]
     FROM_BTN_TO_HERO_PERSPECTIVE = (n_players - button_index) % n_players
-    player_info = get_player_stats(obs_keys, obs, start_idx=idx_end_table + 1, offset=offset, n_players=n_players)
+    player_info = get_player_stats(obs_keys, obs, start_idx=idx_end_table + 1, offset=offset, n_players=n_players,
+                                   normalization=normalization)
 
     stack_sizes_rolled = get_rolled_stack_sizes(request, body, n_players, button_index)
     result = {'env_id': env_id,

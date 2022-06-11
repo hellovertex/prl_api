@@ -37,16 +37,16 @@ class Table(BaseModel):
     side_pot_4:   0.0
     side_pot_5:   0.0
     """
-    ante: float
-    small_blind: float
-    big_blind: float
-    min_raise: float
-    pot_amt: float
-    total_to_call: float
-    round_preflop: float
-    round_flop: float
-    round_turn: float
-    round_river: float
+    ante: int
+    small_blind: int
+    big_blind: int
+    min_raise: int
+    pot_amt: int
+    total_to_call: int
+    round_preflop: int
+    round_flop: int
+    round_turn: int
+    round_river: int
     side_pot_0: float
     side_pot_1: float
     side_pot_2: float

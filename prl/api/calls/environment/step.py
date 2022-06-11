@@ -7,6 +7,7 @@ from starlette.requests import Request
 
 from .utils import get_table_info, get_board_cards, get_player_stats, get_rolled_stack_sizes
 from prl.environment.steinberger.PokerRL.game._.rl_env.base import PokerEnv
+
 PokerEnv
 router = APIRouter()
 
@@ -57,7 +58,9 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
                                   idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
                                   obs=obs)
     # todo debug players using scratch
-    player_info = get_player_stats(obs_keys, obs, start_idx=idx_end_table + 1, offset=offset, n_players=n_players)
+    normalization = request.app.backend.active_ens[body.env_id].normalization
+    player_info = get_player_stats(obs_keys, obs, start_idx=idx_end_table + 1, offset=offset, n_players=n_players,
+                                   normalization=normalization)
     stack_sizes_rolled = get_rolled_stack_sizes(request, body, n_players, button_index)
 
     payouts_rolled = {}

@@ -62,7 +62,7 @@ def get_player_cards(idx_start, idx_end, obs, n_suits=4, n_ranks=13):
     return cards
 
 
-def get_player_stats(obs_keys, obs, start_idx, offset, n_players) -> Players:
+def get_player_stats(obs_keys, obs, start_idx, offset, n_players, normalization) -> Players:
     # cards where 0 is always the observing players cards
     cp0 = get_player_cards(idx_start=obs_keys.index("0th_player_card_0_rank_0"),
                            idx_end=obs_keys.index("1th_player_card_0_rank_0"),
@@ -125,6 +125,9 @@ def get_player_stats(obs_keys, obs, start_idx, offset, n_players) -> Players:
     p_info_rolled = dict(list(zip(player_info.keys(), p_info_rolled)))
 
     players = Players(**p_info_rolled)
+    for player in players:
+        player[1].stack_p *= round(normalization)
+        player[1].curr_bet_p *= round(normalization)
     assert players.p0.pid == 0
     return players
 
@@ -153,18 +156,18 @@ def get_board_cards(idx_board_start, idx_board_end, obs, n_suits=4, n_ranks=13):
     return Board(**cards)
 
 
-def get_table_info(obs_keys, obs, offset, n_players):
+def get_table_info(obs_keys, obs, offset, n_players, normalization):
     side_pots = [obs[obs_keys.index(f'side_pot_{i}')] for i in range(n_players)]
     side_pots = np.roll(side_pots, -offset)
     side_pots = np.pad(side_pots, (0, 6 - n_players), 'constant')
     side_pots = [s.item() for s in side_pots]  # convert np.int32 to python int
     sp_keys = ['side_pot_0', 'side_pot_1', 'side_pot_2', 'side_pot_3', 'side_pot_4', 'side_pot_5']
-    table = {'ante': obs[obs_keys.index('ante')],
-             'small_blind': obs[obs_keys.index('small_blind')],
-             'big_blind': obs[obs_keys.index('big_blind')],
-             'min_raise': obs[obs_keys.index('min_raise')],
-             'pot_amt': obs[obs_keys.index('pot_amt')],
-             'total_to_call': obs[obs_keys.index('total_to_call')],
+    table = {'ante': round(obs[obs_keys.index('ante')] * normalization),
+             'small_blind': round(obs[obs_keys.index('small_blind')] * normalization),
+             'big_blind': round(obs[obs_keys.index('big_blind')] * normalization),
+             'min_raise': round(obs[obs_keys.index('min_raise')] * normalization),
+             'pot_amt': round(obs[obs_keys.index('pot_amt')] * normalization),
+             'total_to_call': round(obs[obs_keys.index('total_to_call')] * normalization),
              'round_preflop': obs[obs_keys.index('round_preflop')],
              'round_flop': obs[obs_keys.index('round_flop')],
              'round_turn': obs[obs_keys.index('round_turn')],
@@ -183,6 +186,8 @@ def get_rolled_stack_sizes(request, body, n_players, button_index):
     stacks_rolled = []
     indices = np.roll(np.arange(n_players), button_index, axis=0)
     for i in range(len(seats)):
-        stacks_rolled.append((f'stack_p{i}', stacks[indices[i]]))
+        stack_pi = stacks[indices[i]]
+        assert stack_pi >= 0
+        stacks_rolled.append((f'stack_p{i}', stack_pi))
 
     return dict(stacks_rolled)
