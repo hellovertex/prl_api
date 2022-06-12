@@ -85,6 +85,7 @@ MAX_PLAYERS = 6
 
 
 def get_blinds(stacks: np.ndarray, button_index: int):
+    """stacks are relative to hero position, how frontend uses them"""
     stacks[np.where(stacks == None)] = 0
     available_pids = np.where(stacks > 0)[0]
     n_players_alive = len(available_pids)
@@ -169,14 +170,17 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     new_btn_seat_frontend = request.app.backend.metadata[env_id]['button_index']
 
     mapped_indices = get_indices_map(stacks=stacks, new_btn_seat_frontend=new_btn_seat_frontend)
-    sb_backend, bb_backend = get_blinds(np.array(stacks), new_btn_seat_frontend)
-    request.app.backend.metadata[env_id]['sb'] = sb_backend
-    request.app.backend.metadata[env_id]['bb'] = bb_backend
 
     # 3. On un-rolled, un-trimmed stacks, apply transformation for backend
     # [None 200. None 140. 800. None]
+    # stacks_sizes = {}
+    # tmp = np.array(stacks)
+    # tmp[np.where(tmp==None)] = 0
+    # for i, s in enumerate(tmp):
+    #     stacks_sizes[f'p{i}'] = round(s)
     rolled_stack_values = np.roll(stacks, -new_btn_seat_frontend)  # [200. None 140. 800. None None]
     rolled_stack_values[np.where(rolled_stack_values == None)] = 0  # [200.   0. 140. 800.   0.   0.]
+
     seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)  # [0 2 3]
     stack_sizes_rolled = rolled_stack_values[seat_ids_with_pos_stacks]  # [200. 140. 800.]
     n_players = len(stack_sizes_rolled)  # 3
@@ -217,8 +221,12 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
                                    mapped_indices=mapped_indices,
                                    normalization=normalization)
 
+    # small blind an big blind have been removed, need to add them back to stacks manually
     stack_sizes = get_stacks(player_info)
     request.app.backend.metadata[body.env_id]['last_stack_sizes'] = stack_sizes
+
+    request.app.backend.metadata[env_id]['sb'] = mapped_indices[request.app.backend.active_ens[env_id].env.SB_POS]
+    request.app.backend.metadata[env_id]['bb'] = mapped_indices[request.app.backend.active_ens[env_id].env.BB_POS]
     result = {'env_id': env_id,
               'n_players': n_players,
               'stack_sizes': stack_sizes,

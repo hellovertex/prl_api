@@ -75,6 +75,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
         payouts_rolled[pid] = v
 
     # when done, the observation sets the stacks to 0
+    # todo: remove last_stack_sizes entirely and replace with stacks from seats
     if done:
         stack_sizes_rolled = request.app.backend.metadata[body.env_id]['last_stack_sizes']
         print('STACK_SIZS BEFORE APPLYING PAYOUTS:', stack_sizes_rolled)
