@@ -5,7 +5,7 @@ The vectorized observation is always relative to the current player.
 The frontend needs the seat indices relative to the HERO seat.
 
 Additionally, when a players stack is 0 at the beginning of a round, he or she is eliminated.
-His seat is kept in the frontend, and thus seat indices and their order does not change in the frontend.
+His/her seat is kept in the frontend, and thus seat indices and their order does not change in the frontend.
 However, the prl_environment.steinberger.PokerRL-environment, needs to be reset
 with a decreased number of players, because it does not work,
 if it is reset with a person that has a stack size of 0.
@@ -35,7 +35,7 @@ During the game, 3 players go all in and we get final stacks
 }
 
 Now the button must be propagated to seat_id=5.
-On end of a round that is signalled by the api via a `done`-flag response,
+On end of a round -that is signalled by the api via a `done`-flag response-
 the frontend sends a POST request to the /reset endpoint of the API using the final stack sizes.
 
 It is now the API`s job -upon receiving the reset-request, to translate

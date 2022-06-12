@@ -101,6 +101,8 @@ SUIT_DICT = {
 
 
 def get_indices_map(stacks: list, new_btn_seat_frontend: int):
+    """ Gets a list of stacks. Rolls all non-zero stacks relative to button,
+    and returns a map of the indices mapping from button-view back to the initial view"""
     seat_ids_remaining_frontend = [i for i, s in enumerate(stacks) if s > 0]  # [1, 2, 5]
     roll_by = -seat_ids_remaining_frontend.index(new_btn_seat_frontend)
     rolled_seat_ids = np.roll(seat_ids_remaining_frontend, roll_by)  # [5, 1, 2]
@@ -109,6 +111,8 @@ def get_indices_map(stacks: list, new_btn_seat_frontend: int):
 
 
 def update_button_seat_frontend(stacks: list, old_btn_seat: int):
+    """Rolls stacks relative to button view and picks the first non-zero stack
+     after button to determine its position as the new button position."""
     # old_btn_seat = 2
     # stacks = [0, 140, 800, 0, 0, 200]
     # new button seat should be 5 because 3,4 are eliminated
