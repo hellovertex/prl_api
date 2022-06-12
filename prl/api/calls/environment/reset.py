@@ -113,7 +113,7 @@ def assign_button_to_random_frontend_seat(env_id, request, stacks: list):
     available_pids = np.where(stacks > 0)[0]  # [200.   0. 140. 800.   0.   0.]
     new_btn_seat_frontend = np.random.choice(available_pids)  # pick from [0 2 3]
 
-    request.app.backend.metadata[env_id]['initial_state'] = False
+
     request.app.backend.metadata[env_id]['button_index'] = new_btn_seat_frontend
 
 
@@ -161,6 +161,9 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     # 2. Move Button to next available frontend seat
     if request.app.backend.metadata[env_id]['initial_state']:
         assign_button_to_random_frontend_seat(env_id, request, stacks)  # stacks relative to hero
+        # reset old stacks
+        request.app.backend.metadata[body.env_id]['last_stack_sizes'] = list()
+        request.app.backend.metadata[env_id]['initial_state'] = False
     else:
         move_button_to_next_available_frontend_seat(env_id, request, stacks)  # stacks relative to hero
     new_btn_seat_frontend = request.app.backend.metadata[env_id]['button_index']
@@ -184,7 +187,9 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     args = NoLimitHoldem.ARGS_CLS(n_seats=n_players,
                                   starting_stack_sizes_list=stack_sizes_rolled,
                                   use_simplified_headsup_obs=False)
-    request.app.backend.active_ens[env_id].overwrite_args(args, agent_observation_mode=AgentObservationType.SEER)
+    request.app.backend.active_ens[env_id].overwrite_args(args,
+                                                          agent_observation_mode=AgentObservationType.SEER,
+                                                          n_players=n_players)
     obs_dict = request.app.backend.active_ens[env_id].obs_idx_dict
     obs_keys = [k for k in obs_dict.keys()]
     obs, _, _, _ = request.app.backend.active_ens[env_id].reset()
@@ -225,7 +230,8 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
               'sb': request.app.backend.metadata[env_id]['sb'],
               'bb': request.app.backend.metadata[env_id]['bb'],
               'p_acts_next': mapped_indices[0] if n_players < 4 else mapped_indices[3],
-              'done': False,
+              'game_over': False,  # whole game
+              'done': False,  # this hand
               'info': Info(**{'continue_round': True,
                               'draw_next_stage': False,
                               'rundown': False,

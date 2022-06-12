@@ -1,5 +1,6 @@
 from random import randint
 
+import numpy as np
 from fastapi import APIRouter
 from pydantic import BaseModel
 from starlette.requests import Request
@@ -40,10 +41,11 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     obs, a, done, info = request.app.backend.active_ens[env_id].step(action)
     # if action was fold, but player could have checked, the environment internally changes the action
     # if that happens, we must overwrite last action accordingly
-    action = request.app.backend.active_ens[env_id].env.last_action  # [what, how_much, who]
-    action = action[0], action[1], action[2]
-    print(f'Stepping environment with action = {action}')
     mapped_indices = request.app.backend.metadata[env_id]['mapped_indices']
+    action = request.app.backend.active_ens[env_id].env.last_action  # [what, how_much, who]
+    action = action[0], action[1], mapped_indices[action[2]]
+    print(f'Stepping environment with action = {action}')
+
     pid_next_to_act_backend = request.app.backend.active_ens[env_id].env.current_player.seat_id
     offset_current_player_to_hero = pid_next_to_act_backend
 
@@ -75,13 +77,14 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     # when done, the observation sets the stacks to 0
     if done:
         stack_sizes_rolled = request.app.backend.metadata[body.env_id]['last_stack_sizes']
-        for i, (pid, stack) in enumerate(stack_sizes_rolled.items()):
-            if i in payouts_rolled:
-                stack_sizes_rolled[pid] += payouts_rolled[i]
+        for seat_id, (seat_pid, stack) in enumerate(stack_sizes_rolled.items()):
+            if seat_id in payouts_rolled:
+                stack_sizes_rolled[seat_pid] += payouts_rolled[seat_id]
             # manually subtract last action from players stack_size, environment does not do it
-            if i == action[2] and (action[0] != 0):
-                stack_sizes_rolled[pid] -= action[1]
+            if seat_id == action[2] and (action[0] != 0):
+                stack_sizes_rolled[seat_pid] -= action[1]
     request.app.backend.metadata[body.env_id]['last_stack_sizes'] = stack_sizes_rolled
+    is_game_over = len(np.where(np.array(list(stack_sizes_rolled.values())) != 0)[0]) < 2
     print('done = ', done)
     print('RETURNING WITH STACK_SIZS:', stack_sizes_rolled)
     print('PASYOUS = ', payouts_rolled)
@@ -97,6 +100,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
               'sb': request.app.backend.metadata[env_id]['sb'],
               'bb': request.app.backend.metadata[env_id]['bb'],
               'done': done,
+              'game_over': is_game_over,  # less than two players remaining
               'p_acts_next': mapped_indices[pid_next_to_act_backend],
               'info': Info(**{'continue_round': info['continue_round'],
                               'draw_next_stage': info['draw_next_stage'],

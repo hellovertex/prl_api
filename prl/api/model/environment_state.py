@@ -120,5 +120,6 @@ class EnvironmentState(BaseModel):
     # utils
     last_action: Optional[LastAction]
     p_acts_next: int
-    done: bool
+    game_over: bool  # whole game
+    done: bool  # hand
     info: Info

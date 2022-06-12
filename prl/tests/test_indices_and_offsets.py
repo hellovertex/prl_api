@@ -128,8 +128,31 @@ def test_translate_starting_stacks_for_backend():
                               2: 2}
 
 
-def not_a_test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
+def test_add_payouts_to_stacks():
+    payouts_rolled = {2: 4200}  # {1: 2050}
+    action = (1, 2000, 2)
+    stack_sizes_rolled = {'p0': 0, 'p1': 1900, 'p2': 0, 'p3': 0, 'p4': 0, 'p5': 0}
+    for seat_id, (seat_pid, stack) in enumerate(stack_sizes_rolled.items()):
+        if seat_id in payouts_rolled:
+            stack_sizes_rolled[seat_pid] += payouts_rolled[seat_id]
+        # manually subtract last action from players stack_size, environment does not do it
+        if seat_id == action[2] and (action[0] != 0):
+            stack_sizes_rolled[seat_pid] -= action[1]
+    assert stack_sizes_rolled == {'p0': 0, 'p1': 1900, 'p2': 2200, 'p3': 0, 'p4': 0, 'p5': 0}
+    print(stack_sizes_rolled)
 
+
+def test_game_over():
+    stacks1 = {'p0': 0, 'p1': 1900, 'p2': 2200, 'p3': 0, 'p4': 0, 'p5': 0}
+    stacks2 = {'p0': 0, 'p1': 0, 'p2': 2200, 'p3': 0, 'p4': 0, 'p5': 0}
+    stacks1 = np.array(list(stacks1.values()))
+    stacks2 = np.array(list(stacks2.values()))
+    is_game_over1 = len(np.where(stacks1 != 0)[0]) < 2
+    is_game_over2 = len(np.where(stacks2 != 0)[0]) < 2
+    assert is_game_over1 is False
+    assert is_game_over2 is True
+
+def not_a_test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
     observation_slices_per_player = []
     obs_keys = [re.sub(re.compile(r'p\d'), 'p', s) for s in obs_keys]
     for i in range(MAX_PLAYERS):
@@ -139,7 +162,6 @@ def not_a_test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
 
     player_info = {}
     for pid, frontend_seat in mapped_indices.items():
-
         hand = get_player_cards(idx_start=obs_keys.index(f"{pid}th_player_card_0_rank_0"),
                                 idx_end=obs_keys.index(f"{pid}th_player_card_1_suit_3") + 1,
                                 obs=obs)
@@ -151,6 +173,10 @@ def not_a_test_get_player_stats(obs, obs_keys, offset, mapped_indices: dict):
     p_info_rolled = dict(list(zip(player_info.keys(), p_info_rolled)))
     response_players = Players(**p_info_rolled)
 
-
     if __name__ == '__main__':
         test_translate_starting_stacks_for_backend()
+
+
+if __name__ == '__main__':
+    test_add_payouts_to_stacks()
+    test_game_over()
