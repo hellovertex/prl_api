@@ -95,6 +95,7 @@ class Players(BaseModel):
 class LastAction(BaseModel):
     action_what: int
     action_how_much: float
+    action_who: int
 
 
 class Info(BaseModel):
