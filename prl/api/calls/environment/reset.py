@@ -84,80 +84,101 @@ abbrevs = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']
 MAX_PLAYERS = 6
 
 
-def move_button_to_next_available_frontend_seat(request, body):
-    stacks = list(body.stack_sizes.dict().values())
-    old_btn_seat = request.app.backend.metadata[body.env_id]['button_index']
-    if 'last_stack_sizes' in request.app.backend.metadata[body.env_id]:
-        stacks = list(request.app.backend.metadata[body.env_id]['last_stack_sizes'].values())
-    new_btn_seat = update_button_seat_frontend(stacks, old_btn_seat)
-    request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat
-
-
-def assign_button_to_random_frontend_seat(request, body):
-    # todo this is called with possibly fucked up body.stack_sizes
-    #  this needs to be called with last_stack_sizes if possible
-    #  otherwise it will cause the env and vectorizer to throw random bugs
-    # Randomly determine first button seat position in frontend
-    stacks = np.array(list(body.stack_sizes.dict().values()))
-    stacks[stacks == None] = 0
+def get_blinds(stacks: np.ndarray, button_index: int):
+    stacks[np.where(stacks == None)] = 0
     available_pids = np.where(stacks > 0)[0]
-    new_btn_seat_frontend = np.random.choice(available_pids)
-
-    request.app.backend.metadata[body.env_id]['initial_state'] = False
-    request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat_frontend
     n_players_alive = len(available_pids)
-    # set sb and bb too for convenience
-    tmp = np.roll(available_pids, -new_btn_seat_frontend)
+    tmp = np.roll(available_pids, -button_index)
     if n_players_alive <= 2:
         sb = tmp[0]
         bb = tmp[1]
     else:
         sb = tmp[1]
         bb = tmp[2]
-    request.app.backend.metadata[body.env_id]['sb'] = sb
-    request.app.backend.metadata[body.env_id]['bb'] = bb
+    return sb, bb
+
+
+def move_button_to_next_available_frontend_seat(env_id, request, stacks: list):
+    """Move button position. Skip eliminated players."""
+    old_btn_seat = request.app.backend.metadata[env_id]['button_index']
+    new_btn_seat_frontend = update_button_seat_frontend(stacks, old_btn_seat)
+    request.app.backend.metadata[env_id]['button_index'] = new_btn_seat_frontend
+
+
+def assign_button_to_random_frontend_seat(env_id, request, stacks: list):
+    """Randomly determine first button seat position in frontend."""
+    # Randomly determine first button seat position in frontend
+    stacks = np.array(stacks)
+    stacks[stacks == None] = 0  # [200. None 140. 800. None None]
+    available_pids = np.where(stacks > 0)[0]  # [200.   0. 140. 800.   0.   0.]
+    new_btn_seat_frontend = np.random.choice(available_pids)  # pick from [0 2 3]
+
+    request.app.backend.metadata[env_id]['initial_state'] = False
+    request.app.backend.metadata[env_id]['button_index'] = new_btn_seat_frontend
+
+
+def stack_sizes_valid(stacks: list):
+    stacks = np.array(stacks)
+    stacks[stacks == None] = 0
+    # stacks = [s for s in stacks]
+    valid = False
+    for s in stacks:
+        if s != 0:
+            valid = True
+    return valid
+
+
+def try_get_stacks(request, body) -> list:
+    """Try loading stack sizes from request body. If these are invalid,
+    tries loading stack sizes from last played hand. If this fails,
+    it returns default stack size for each player."""
+    n_players = request.app.backend.active_ens[body.env_id].env.N_SEATS
+    default_stack = request.app.backend.active_ens[body.env_id].env.DEFAULT_STACK_SIZE
+    stacks = [default_stack for _ in range(n_players)]
+    if body.stack_sizes:
+        request_stacks = list(body.stack_sizes.dict().values())
+        if stack_sizes_valid(request_stacks):
+            stacks = request_stacks
+        else:
+            try:
+                stacks = list(request.app.backend.metadata[body.env_id]['last_stack_sizes'].values())
+            except KeyError:
+                # no last round played
+                pass
+    return stacks
 
 
 @router.post("/environment/{env_id}/reset/",
              response_model=EnvironmentState,
              operation_id="reset_environment")
 async def reset_environment(body: EnvironmentResetRequestBody, request: Request):
+    # DEFAULTS
     env_id = body.env_id
 
-    # if no starting stacks are provided we can safely get number of players from environment configuration
-    # otherwise, starting stacks provided by the client indicate a maybe reduced number of players
-    # DEFAULTS
-    n_players = request.app.backend.active_ens[env_id].env.N_SEATS
-    default_stack = request.app.backend.active_ens[env_id].env.DEFAULT_STACK_SIZE
-    stack_sizes_rolled = [default_stack for _ in range(n_players)]
-    mapped_indices = dict(list(zip([i for i in range(n_players)], [i for i in range(n_players)])))
+    # Parse stacks from body, if invalid, try loading stacks from last round, if fails, use default
+    stacks = try_get_stacks(request, body)  # stacks relative to hero
 
-    # Move Button to next available frontend seat
+    # 2. Move Button to next available frontend seat
     if request.app.backend.metadata[env_id]['initial_state']:
-        assign_button_to_random_frontend_seat(request, body)
+        assign_button_to_random_frontend_seat(env_id, request, stacks)  # stacks relative to hero
     else:
-        move_button_to_next_available_frontend_seat(request, body)
+        move_button_to_next_available_frontend_seat(env_id, request, stacks)  # stacks relative to hero
     new_btn_seat_frontend = request.app.backend.metadata[env_id]['button_index']
 
-    # If request body contains stack sizes, remove zeros and roll them relative to BUTTON
-    if body.stack_sizes:
-        stacks = np.array(list(body.stack_sizes.dict().values()))
-        stacks[stacks == None] = 0
-        stacks = stacks.tolist()
-        skip = True
-        for s in stacks:
-            if s != 0:
-                skip = False
-        # if stacks were empty, use last_stack_sizes
-        if skip:
-            stacks = list(request.app.backend.metadata[body.env_id]['last_stack_sizes'].values())
-        mapped_indices = get_indices_map(stacks=stacks, new_btn_seat_frontend=new_btn_seat_frontend)
-        rolled_stack_values = np.roll(stacks, -new_btn_seat_frontend)  # [200   0 140 800   0   0]
-        seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)
-        stack_sizes_rolled = rolled_stack_values[seat_ids_with_pos_stacks]
-        n_players = len(stack_sizes_rolled)
-    stack_sizes_rolled = [round(s) for s in stack_sizes_rolled]
-    request.app.backend.metadata[env_id]['mapped_indices'] = mapped_indices
+    mapped_indices = get_indices_map(stacks=stacks, new_btn_seat_frontend=new_btn_seat_frontend)
+    sb_backend, bb_backend = get_blinds(np.array(stacks), new_btn_seat_frontend)
+    request.app.backend.metadata[env_id]['sb'] = sb_backend
+    request.app.backend.metadata[env_id]['bb'] = bb_backend
+
+    # 3. On un-rolled, un-trimmed stacks, apply transformation for backend
+    # [None 200. None 140. 800. None]
+    rolled_stack_values = np.roll(stacks, -new_btn_seat_frontend)  # [200. None 140. 800. None None]
+    rolled_stack_values[np.where(rolled_stack_values == None)] = 0  # [200.   0. 140. 800.   0.   0.]
+    seat_ids_with_pos_stacks = np.where(rolled_stack_values != 0)  # [0 2 3]
+    stack_sizes_rolled = rolled_stack_values[seat_ids_with_pos_stacks]  # [200. 140. 800.]
+    n_players = len(stack_sizes_rolled)  # 3
+    stack_sizes_rolled = [round(s) for s in stack_sizes_rolled]  # [200 140 800]
+    request.app.backend.metadata[env_id]['mapped_indices'] = mapped_indices  # {0: 0, 1: 2, 2:3}
 
     # Set env_args such that rolled starting stacks are used
     args = NoLimitHoldem.ARGS_CLS(n_seats=n_players,
@@ -201,8 +222,8 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
               'players': player_info,
               'board': board_cards,
               'button_index': new_btn_seat_frontend,
-              'sb': mapped_indices[request.app.backend.metadata[env_id]['sb']],
-              'bb': mapped_indices[request.app.backend.metadata[env_id]['bb']],
+              'sb': request.app.backend.metadata[env_id]['sb'],
+              'bb': request.app.backend.metadata[env_id]['bb'],
               'p_acts_next': mapped_indices[0] if n_players < 4 else mapped_indices[3],
               'done': False,
               'info': Info(**{'continue_round': True,

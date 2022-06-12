@@ -103,6 +103,8 @@ SUIT_DICT = {
 def get_indices_map(stacks: list, new_btn_seat_frontend: int):
     """ Gets a list of stacks. Rolls all non-zero stacks relative to button,
     and returns a map of the indices mapping from button-view back to the initial view"""
+    stacks = np.array(stacks)
+    stacks[np.where(stacks == None)] = 0
     seat_ids_remaining_frontend = [i for i, s in enumerate(stacks) if s > 0]  # [1, 2, 5]
     roll_by = -seat_ids_remaining_frontend.index(new_btn_seat_frontend)
     rolled_seat_ids = np.roll(seat_ids_remaining_frontend, roll_by)  # [5, 1, 2]
