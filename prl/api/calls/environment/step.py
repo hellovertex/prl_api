@@ -77,12 +77,15 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     # when done, the observation sets the stacks to 0
     if done:
         stack_sizes_rolled = request.app.backend.metadata[body.env_id]['last_stack_sizes']
-        for seat_id, (seat_pid, stack) in enumerate(stack_sizes_rolled.items()):
-            if seat_id in payouts_rolled:
-                stack_sizes_rolled[seat_pid] += payouts_rolled[seat_id]
-            # manually subtract last action from players stack_size, environment does not do it
-            if seat_id == action[2] and (action[0] != 0):
-                stack_sizes_rolled[seat_pid] -= action[1]
+        print('STACK_SIZS BEFORE APPLYING PAYOUTS:', stack_sizes_rolled)
+        # for seat_id, (seat_pid, stack) in enumerate(stack_sizes_rolled.items()):
+        #     if seat_id in payouts_rolled:
+        #         stack_sizes_rolled[seat_pid] += payouts_rolled[seat_id]
+        #     # manually subtract last action from players stack_size, environment does not do it
+        #     if seat_id == action[2] and (action[0] != 0):
+        #         stack_sizes_rolled[seat_pid] -= action[1]
+        for i, player in enumerate(request.app.backend.active_ens[env_id].env.seats):
+            stack_sizes_rolled[f'p{mapped_indices[i]}'] = player.stack
     request.app.backend.metadata[body.env_id]['last_stack_sizes'] = stack_sizes_rolled
     is_game_over = len(np.where(np.array(list(stack_sizes_rolled.values())) != 0)[0]) < 2
     print('done = ', done)
