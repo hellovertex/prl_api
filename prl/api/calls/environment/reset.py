@@ -26,14 +26,26 @@ def move_button_to_next_available_frontend_seat(request, body):
 
 
 def assign_button_to_random_frontend_seat(request, body):
+    # todo this is called with possibly fucked up body.stack_sizes
+    #  this needs to be called with last_stack_sizes if possible
+    #  otherwise it will cause the env and vectorizer to throw random bugs
     # Randomly determine first button seat position in frontend
     stacks = np.array(list(body.stack_sizes.dict().values()))
     stacks[stacks == None] = 0
-    new_btn_seat_frontend = np.random.choice(np.where(stacks > 0)[0])
+    available_pids = np.where(stacks > 0)[0]
+    new_btn_seat_frontend = np.random.choice(available_pids)
+
     request.app.backend.metadata[body.env_id]['initial_state'] = False
     request.app.backend.metadata[body.env_id]['button_index'] = new_btn_seat_frontend
-    n_players_alive = len(np.where(stacks != 0))
-    sb, bb = (1, 2) if n_players_alive > 2 else (0, 1)
+    n_players_alive = len(available_pids)
+    # set sb and bb too for convenience
+    tmp = np.roll(available_pids, -new_btn_seat_frontend)
+    if n_players_alive <= 2:
+        sb = tmp[0]
+        bb = tmp[1]
+    else:
+        sb = tmp[1]
+        bb = tmp[2]
     request.app.backend.metadata[body.env_id]['sb'] = sb
     request.app.backend.metadata[body.env_id]['bb'] = bb
 
