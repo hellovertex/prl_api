@@ -1,9 +1,6 @@
 name = "PokerRL"
 
-from . import cfr
-from . import eval
 from . import game
-from . import rl
 from . import util
 
 from .game.games import *
