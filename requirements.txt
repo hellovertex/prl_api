@@ -1,5 +1,5 @@
 requests
-torch~=1.10.2
+torch~=1.11
 fastapi
 uvicorn
 pydantic
