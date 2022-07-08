@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+torch = "~=1.11"
+fastapi = "*"
+uvicorn = "*"
+pydantic = "*"
+numpy = "*"
+gym = "==0.10.9"
+pycrayon = "==0.5"
+psutil = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
