@@ -1,7 +1,6 @@
 from random import randint
 
 import numpy as np
-import torch
 from fastapi import APIRouter
 from pydantic import BaseModel
 from starlette.requests import Request
