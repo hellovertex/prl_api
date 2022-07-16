@@ -14,6 +14,7 @@ origins = [
     "http://localhost:1234",
     "http://localhost:8000",
     "http://localhost:*",
+    "https://prl-api.herokuapp.com/*"
 ]
 
 app.add_middleware(
