@@ -11,12 +11,12 @@ import requests
 app = FastAPI()
 
 origins = [
-    "*",
-    # "http://localhost:1234",
-    # "http://localhost:8000",
-    # "http://localhost:*",
-    # "https://prl-api.herokuapp.com/*",
-    # "https://prl-frontend.herokuapp.com/*"
+    # "*",
+    "http://localhost:1234",
+    "http://localhost:8000",
+    "http://localhost:*",
+    "https://prl-api.herokuapp.com/*",
+    "https://prl-frontend.herokuapp.com/*"
 ]
 
 app.add_middleware(
