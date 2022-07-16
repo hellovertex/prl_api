@@ -1,14 +1,16 @@
 import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from environment_registry import EnvironmentRegistry
 import calls.environment.configure
 import calls.environment.reset
 import calls.environment.step
 import calls.environment.delete
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 import requests
 
-app = FastAPI()
+
 
 origins = [
     "*",
@@ -18,14 +20,24 @@ origins = [
     # "https://prl-api.herokuapp.com/*",
     # "https://prl-frontend.herokuapp.com/*"
 ]
+middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*']
+    )
+]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(middleware=middleware)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 app.backend = EnvironmentRegistry()
 
 # register api calls
