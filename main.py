@@ -13,17 +13,17 @@ import requests
 
 
 origins = [
-    "*",
-    # "http://localhost:1234",
-    # "http://localhost:8000",
-    # "http://localhost:*",
-    # "https://prl-api.herokuapp.com/*",
-    # "https://prl-frontend.herokuapp.com/*"
+    # "*",
+    "http://localhost:1234",
+    "http://localhost:8000",
+    "http://localhost:*",
+    "https://prl-api.herokuapp.com/*",
+    "https://prl-frontend.herokuapp.com/*"
 ]
 middleware = [
     Middleware(
         CORSMiddleware,
-        allow_origins=['*'],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=['*'],
         allow_headers=['*']
