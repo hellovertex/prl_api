@@ -2,5 +2,5 @@ fastapi
 uvicorn
 pydantic
 numpy
-gym
+gym=0.10.9
 scipy
