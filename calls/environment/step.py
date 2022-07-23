@@ -20,8 +20,13 @@ class EnvironmentStepRequestBody(BaseModel):
 def get_action(request, body):
     if body.action == -1:  # query ai model, random action for now
         # todo query baseline TAG agent
-        # ckpt = torch.load(path_to_checkpoint)
-        # torch.load()
+        # 0: fold (0,-1)
+        # 1: check/call (1,-1)
+        # 2: min-raise (env.obs.min_raise * normalization)
+        # 3: 1/2 pot raise (2, min(env.obs.pot * .5, min_raise))
+        # 4: pot raise (2, min(env.obs.pot, min_raise))
+        # 5: All-in (2, env.obs.player_stack)
+
         what = randint(0, 2)
         raise_amount = -1
         if what == 2:

@@ -1,4 +1,4 @@
-"""Rolling indices between frontend, and backend needs care.
+"""Rolling seat indices between frontend, and backend needs care.
 The prl_environment.steinberger.PokerRL-environment,
  has the observation and seat indices relative to the BTN.
 The vectorized observation is always relative to the current player.
