@@ -40,7 +40,7 @@ def parse_int_action(request, body, action):
     if action_what == RAISE:
         min_raise = request.app.backend.active_ens[body.env_id].env._get_current_total_min_raise()
         pot_size = request.app.backend.active_ens[body.env_id].env.get_all_winnable_money()
-        all_in = max([player.stack for player in request.app.backend.active_ens[body.env_id].seats])
+        all_in = max([player.stack for player in request.app.backend.active_ens[body.env_id].env.seats])
         # environment automatically adjusts bet size appropriately so it is safe to simply use
         # the largest stack for all-in raise amount as there is no over-raise
         # this way we do not need to determine whose players turn it is
