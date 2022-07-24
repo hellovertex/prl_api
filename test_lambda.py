@@ -37,3 +37,4 @@ data = {
 print('running request...')
 res = requests.post(url=url, data=json.dumps(data), headers={'Content-Type': 'application/json'})
 print(res.text)
+print(eval(res.text)['action'])
