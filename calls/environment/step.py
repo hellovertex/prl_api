@@ -1,6 +1,8 @@
-from random import randint
+import enum
+import json
 
 import numpy as np
+import requests
 from fastapi import APIRouter
 from pydantic import BaseModel
 from starlette.requests import Request
@@ -9,6 +11,9 @@ from model.environment_state import EnvironmentState, LastAction, Info
 from .utils import get_table_info, get_board_cards, get_player_stats, get_stacks
 
 router = APIRouter()
+FOLD = 0
+CHECK_CALL = 1
+RAISE = 2
 
 
 class EnvironmentStepRequestBody(BaseModel):
@@ -17,16 +22,48 @@ class EnvironmentStepRequestBody(BaseModel):
     action_how_much: float
 
 
+class BetSizes(enum.IntEnum):
+    # different from ActionSpace in prl_environment because
+    # model was trained with 0: Fold, 1:CHECK_CALL 2: MIN_RAISE
+    # instead of ActionSpace labels that are 0: FOLD 1: CHECK 2: CALL 3: MIN_RAISE,...
+    MIN_RAISE = 2
+    HALF_POT = 3
+    POT = 4
+    ALL_IN = 5
+
+
+def parse_int_action(request, body, action):
+    """Translate discretized integer action to steinberger-formatted (action_what, action_how_much) format."""
+
+    action_what = action if action in [FOLD, CHECK_CALL] else RAISE  # 0 is fold, 1 is call, 2 is raise
+    action_how_much = -1  # default bet size for non-bet/raise moves
+    if action_what == RAISE:
+        min_raise = request.app.backend.active_ens[body.env_id]._get_current_total_min_raise()
+        pot_size = request.app.backend.active_ens[body.env_id].get_all_winnable_money()
+        all_in = max([player.stack for player in request.app.backend.active_ens[body.env_id].seats])
+        # environment automatically adjusts bet size appropriately so it is safe to simply use
+        # the largest stack for all-in raise amount as there is no over-raise
+        # this way we do not need to determine whose players turn it is
+        if action == BetSizes.MIN_RAISE:
+            action_how_much = min_raise
+        elif action == BetSizes.HALF_POT:
+            action_how_much = max(min_raise, .5 * pot_size)
+        elif action == BetSizes.POT:
+            action_how_much = max(min_raise, pot_size)
+        elif action == BetSizes.ALL_IN:
+            action_how_much = max(min_raise, all_in)
+    return action_what, action_how_much
+
+
 def get_action(request, body):
-    if body.action == -1:  # query ai model, random action for now
-        # todo query baseline TAG agent
-        # ckpt = torch.load(path_to_checkpoint)
-        # torch.load()
-        what = randint(0, 2)
-        raise_amount = -1
-        if what == 2:
-            raise_amount = max(max([p.current_bet for p in request.app.backend.active_ens[body.env_id].env.seats]), 100)
-        action = (what, raise_amount)
+    if body.action == -1:  # query pytorch model
+        aws_lambda_torch_model_url = "https://p235bek4niablvfxiktuwuswni0qecqs.lambda-url.eu-central-1.on.aws/"
+        query = request.app.backend.metadata[body.env_id]['last_obs']
+        model_output = requests.post(url=aws_lambda_torch_model_url,
+                            data=json.dumps(query),
+                            headers={'Content-Type': 'application/json'})
+        int_action = eval(model_output.text)['action']
+        return parse_int_action(request, body, int_action)
     else:
         action = (body.action, body.action_how_much)
     return action
@@ -43,6 +80,7 @@ async def step_environment(body: EnvironmentStepRequestBody, request: Request):
     obs, a, done, info = request.app.backend.active_ens[env_id].step(action)
     # if action was fold, but player could have checked, the environment internally changes the action
     # if that happens, we must overwrite last action accordingly
+    request.app.backend.metadata[env_id]['last_obs'] = obs
     mapped_indices = request.app.backend.metadata[env_id]['mapped_indices']
     action = request.app.backend.active_ens[env_id].env.last_action  # [what, how_much, who]
     action = action[0], action[1], mapped_indices[action[2]]
