@@ -38,8 +38,8 @@ def parse_int_action(request, body, action):
     action_what = action if action in [FOLD, CHECK_CALL] else RAISE  # 0 is fold, 1 is call, 2 is raise
     action_how_much = -1  # default bet size for non-bet/raise moves
     if action_what == RAISE:
-        min_raise = request.app.backend.active_ens[body.env_id]._get_current_total_min_raise()
-        pot_size = request.app.backend.active_ens[body.env_id].get_all_winnable_money()
+        min_raise = request.app.backend.active_ens[body.env_id].env._get_current_total_min_raise()
+        pot_size = request.app.backend.active_ens[body.env_id].env.get_all_winnable_money()
         all_in = max([player.stack for player in request.app.backend.active_ens[body.env_id].seats])
         # environment automatically adjusts bet size appropriately so it is safe to simply use
         # the largest stack for all-in raise amount as there is no over-raise
