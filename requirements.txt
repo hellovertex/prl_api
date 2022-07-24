@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pydantic
+numpy
+gym=0.10.9
+scipy

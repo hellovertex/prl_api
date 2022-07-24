@@ -58,7 +58,7 @@ def parse_int_action(request, body, action):
 def get_action(request, body):
     if body.action == -1:  # query pytorch model
         aws_lambda_torch_model_url = "https://p235bek4niablvfxiktuwuswni0qecqs.lambda-url.eu-central-1.on.aws/"
-        query = request.app.backend.metadata[body.env_id]['last_obs']
+        query = list(request.app.backend.metadata[body.env_id]['last_obs'])
         model_output = requests.post(url=aws_lambda_torch_model_url,
                                      data=json.dumps({"query": query}),
                                      headers={'Content-Type': 'application/json'})
