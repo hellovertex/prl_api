@@ -70,14 +70,14 @@ from __future__ import annotations
 
 import numpy as np
 from fastapi import APIRouter
-from prl.environment.Wrappers.prl_wrappers import AgentObservationType
-from prl.environment.steinberger.PokerRL import NoLimitHoldem
 from starlette.requests import Request
 
 from calls.environment.utils import get_table_info, get_board_cards, get_player_stats, get_stacks, \
     update_button_seat_frontend, get_indices_map
 from model.environment_reset import EnvironmentResetRequestBody
 from model.environment_state import EnvironmentState, Info
+from prl.environment.Wrappers.prl_wrappers import AgentObservationType
+from prl.environment.steinberger.PokerRL import NoLimitHoldem
 
 router = APIRouter()
 abbrevs = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']
@@ -113,7 +113,6 @@ def assign_button_to_random_frontend_seat(env_id, request, stacks: list):
     stacks[stacks == None] = 0  # [200. None 140. 800. None None]
     available_pids = np.where(stacks > 0)[0]  # [200.   0. 140. 800.   0.   0.]
     new_btn_seat_frontend = np.random.choice(available_pids)  # pick from [0 2 3]
-
 
     request.app.backend.metadata[env_id]['button_index'] = new_btn_seat_frontend
 
@@ -197,6 +196,7 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
     obs_dict = request.app.backend.active_ens[env_id].obs_idx_dict
     obs_keys = [k for k in obs_dict.keys()]
     obs, _, _, _ = request.app.backend.active_ens[env_id].reset()
+    request.app.backend.metadata[env_id]['last_obs'] = obs
 
     # offset that moves observation from relativ to current seat to relative to hero offset
     # when we have the observation relative to hero offset, we can apply our indices map from above
