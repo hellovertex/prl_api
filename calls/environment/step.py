@@ -60,8 +60,8 @@ def get_action(request, body):
         aws_lambda_torch_model_url = "https://p235bek4niablvfxiktuwuswni0qecqs.lambda-url.eu-central-1.on.aws/"
         query = request.app.backend.metadata[body.env_id]['last_obs']
         model_output = requests.post(url=aws_lambda_torch_model_url,
-                            data=json.dumps(query),
-                            headers={'Content-Type': 'application/json'})
+                                     data=json.dumps({"query": query}),
+                                     headers={'Content-Type': 'application/json'})
         int_action = eval(model_output.text)['action']
         return parse_int_action(request, body, int_action)
     else:
