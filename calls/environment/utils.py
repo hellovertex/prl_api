@@ -187,27 +187,35 @@ def get_player_stats(obs, obs_keys, offset, mapped_indices: dict, normalization)
     return response_players
 
 
-def get_board_cards(idx_board_start, idx_board_end, obs, n_suits=4, n_ranks=13):
-    cur_idx = idx_board_start
+def get_board_cards(board: np.ndarray):
+#def get_board_cards(idx_board_start, idx_board_end, obs, n_suits=4, n_ranks=13):
+    # cur_idx = idx_board_start
+    # cards = {}
+    # end_idx = 0
+    # for i in range(5):
+    #     suit = -127
+    #     rank = -127
+    #     end_idx = cur_idx + n_suits + n_ranks
+    #     bits = obs[cur_idx:end_idx]
+    #     if sum(bits) > 0:
+    #         idx = np.where(bits == 1)[0]
+    #         rank, suit = idx[0], idx[1] - n_ranks
+    #
+    #     cards[f'b{i}'] = Card(**{'name': RANK_DICT[rank] + SUIT_DICT[suit],
+    #                              'suit': suit,
+    #                              'rank': rank,
+    #                              'index': i})
+    #     cur_idx = end_idx
+    # # print(f'idx_board_end = {idx_board_end}')
+    # # print(f'end_idx = {end_idx}')
+    # assert idx_board_end == end_idx
     cards = {}
-    end_idx = 0
-    for i in range(5):
-        suit = -127
-        rank = -127
-        end_idx = cur_idx + n_suits + n_ranks
-        bits = obs[cur_idx:end_idx]
-        if sum(bits) > 0:
-            idx = np.where(bits == 1)[0]
-            rank, suit = idx[0], idx[1] - n_ranks
-
-        cards[f'b{i}'] = Card(**{'name': RANK_DICT[rank] + SUIT_DICT[suit],
-                                 'suit': suit,
-                                 'rank': rank,
+    for i, card in enumerate(board):
+        print(card)
+        cards[f'b{i}'] = Card(**{'name': RANK_DICT[card[0]] + SUIT_DICT[card[1]],
+                                 'suit': card[1],
+                                 'rank': card[0],
                                  'index': i})
-        cur_idx = end_idx
-    # print(f'idx_board_end = {idx_board_end}')
-    # print(f'end_idx = {end_idx}')
-    assert idx_board_end == end_idx
     return Board(**cards)
 
 

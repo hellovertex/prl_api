@@ -211,9 +211,10 @@ async def reset_environment(body: EnvironmentResetRequestBody, request: Request)
                                 normalization=normalization,
                                 map_indices=mapped_indices)
 
-    board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
-                                  idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
-                                  obs=obs)
+    # board_cards = get_board_cards(idx_board_start=obs_keys.index('0th_board_card_rank_0'),
+    #                               idx_board_end=obs_keys.index('0th_player_card_0_rank_0'),
+    #                               obs=obs)
+    board_cards = get_board_cards(request.app.backend.active_ens[env_id].env.board)
 
     player_info = get_player_stats(obs=obs,
                                    obs_keys=obs_keys,
