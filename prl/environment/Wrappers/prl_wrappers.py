@@ -501,9 +501,10 @@ class WrapperPokerRL(Wrapper):
         if config is not None:
             deck_state_dict = config['deck_state_dict']
         env_obs, rew_for_all_players, done, info = self.env.reset(deck_state_dict=deck_state_dict)
-        if not self._player_hands:
-            for i in range(self.env.N_SEATS):
-                self._player_hands.append(self.env.get_hole_cards_of_player(i))
+        # if not self._player_hands:
+        self._player_hands = []
+        for i in range(self.env.N_SEATS):
+            self._player_hands.append(self.env.get_hole_cards_of_player(i))
         self._after_reset()
 
         return self._return_obs(env_obs=env_obs, rew_for_all_players=rew_for_all_players, done=done, info=info)
